@@ -19,3 +19,9 @@
 /go
 /log
 /result
+/.composer/
+/.cpanm/
+/.deno/
+/.gem/
+/.perl-cpm/
+/local/
