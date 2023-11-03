@@ -359,7 +359,6 @@ func initialize(c echo.Context) error {
 	//		return c.NoContent(http.StatusInternalServerError)
 	//	}
 	//}
-	os.Exit(34)
 
 	return c.JSON(http.StatusOK, InitializeResponse{
 		Language: "go",
