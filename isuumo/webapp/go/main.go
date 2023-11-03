@@ -347,6 +347,12 @@ func initialize(c echo.Context) error {
 		}
 	}
 
+	// 在庫0の修正
+	if err := rdb.FlushAll(c.Request().Context()).Err(); err != nil {
+		fmt.Printf("%v\n", err)
+		os.Exit(1)
+	}
+
 	return c.JSON(http.StatusOK, InitializeResponse{
 		Language: "go",
 	})
