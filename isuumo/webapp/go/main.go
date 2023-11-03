@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/redis/go-redis/v9"
+	"golang.org/x/exp/slices"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
@@ -825,11 +826,10 @@ func searchRecommendedEstateWithChair(c echo.Context) error {
 	}
 
 	var estates []Estate
-	w := chair.Width
-	h := chair.Height
-	d := chair.Depth
-	query = `SELECT * FROM estate WHERE (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) ORDER BY popularity DESC, id ASC LIMIT ?`
-	err = db.SelectContext(ctx, &estates, query, w, h, w, d, h, w, h, d, d, w, d, h, Limit)
+	sorted := slices.Sort([]int64{chair.Width, chair.Depth, chair.Height})
+	l1, l2 := sorted[0], sorted[1]
+	query = `SELECT * FROM estate WHERE door_width >= ? AND door_height >= ? UNION SELECT * FROM estate WHERE door_width >= ? AND door_height >= ? ORDER BY popularity DESC, id ASC LIMIT ?`
+	err = db.SelectContext(ctx, &estates, query, l1, l2, l2, l1, Limit)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return c.JSON(http.StatusOK, EstateListResponse{[]Estate{}})
