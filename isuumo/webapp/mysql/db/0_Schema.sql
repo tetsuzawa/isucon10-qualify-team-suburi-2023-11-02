@@ -53,6 +53,8 @@ create index chair_popularity_id_index
 create index chair_stock_price_id_index
     on isuumo.chair (stock, price, id);
 
+
+-- chair
 ALTER TABLE isuumo.chair ADD COLUMN features_array text[] GENERATED ALWAYS AS (regexp_split_to_array(features, ',')) STORED;
 
 CREATE INDEX idx_features_array ON chair USING gin(features_array);
@@ -81,3 +83,7 @@ ADD COLUMN depth_range int GENERATED ALWAYS AS (CASE WHEN depth < 80 THEN 0 WHEN
 
 create index chair_depth_range_popularity_id_index
     on isuumo.chair (depth_range asc, popularity desc, id asc);
+
+-- 
+ALTER TABLE isuumo.estate ADD COLUMN features_array text[] GENERATED ALWAYS AS (regexp_split_to_array(features, ',')) STORED;
+CREATE INDEX idx_estate_features_array ON estate USING gin(features_array);
