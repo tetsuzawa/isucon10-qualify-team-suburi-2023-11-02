@@ -204,7 +204,7 @@ func (r *RecordMapper) Err() error {
 
 func NewPostgresEnv() *PostgresEnv {
 	return &PostgresEnv{
-		Host:     getEnv("DB_HOST", "127.0.0.1"),
+		Host:     getEnv("DB_HOSTNAME", "127.0.0.1"),
 		Port:     getEnv("DB_PORT", "5432"),
 		User:     getEnv("DB_USER", "isucon"),
 		DBName:   getEnv("DB_DBNAME", "isuumo"),
