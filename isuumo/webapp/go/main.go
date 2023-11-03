@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -315,30 +313,6 @@ func main() {
 }
 
 func initialize(c echo.Context) error {
-	sqlDir := filepath.Join("..", "mysql", "db")
-	paths := []string{
-		filepath.Join(sqlDir, "0_Schema.sql"),
-		filepath.Join(sqlDir, "1_DummyEstateData.sql"),
-		filepath.Join(sqlDir, "2_DummyChairData.sql"),
-	}
-
-	pgConnectionData := NewPostgresEnv()
-	for _, p := range paths {
-		sqlFile, _ := filepath.Abs(p)
-		cmdStr := fmt.Sprintf("psql -h %v -U %v -d %v -f %v",
-			pgConnectionData.Host,
-			pgConnectionData.User,
-			pgConnectionData.DBName,
-			sqlFile,
-		)
-		cmd := exec.Command("bash", "-c", cmdStr)
-		cmd.Env = append(cmd.Env, "PGPASSWORD="+pgConnectionData.Password)
-		if err := cmd.Run(); err != nil {
-			c.Logger().Errorf("Initialize script error : %v", err)
-			return c.NoContent(http.StatusInternalServerError)
-		}
-	}
-
 	// 在庫0の修正
 	if err := rdb.FlushAll(c.Request().Context()).Err(); err != nil {
 		fmt.Printf("%v\n", err)
@@ -361,6 +335,31 @@ func initialize(c echo.Context) error {
 		fmt.Printf("removing /var/cache/nginx/tmp ...%v\n", err)
 		os.Exit(1)
 	}
+
+	//sqlDir := filepath.Join("..", "mysql", "db")
+	//paths := []string{
+	//	filepath.Join(sqlDir, "0_Schema.sql"),
+	//	filepath.Join(sqlDir, "1_DummyEstateData.sql"),
+	//	filepath.Join(sqlDir, "2_DummyChairData.sql"),
+	//}
+	//
+	//pgConnectionData := NewPostgresEnv()
+	//for _, p := range paths {
+	//	sqlFile, _ := filepath.Abs(p)
+	//	cmdStr := fmt.Sprintf("psql -h %v -U %v -d %v -f %v",
+	//		pgConnectionData.Host,
+	//		pgConnectionData.User,
+	//		pgConnectionData.DBName,
+	//		sqlFile,
+	//	)
+	//	cmd := exec.Command("bash", "-c", cmdStr)
+	//	cmd.Env = append(cmd.Env, "PGPASSWORD="+pgConnectionData.Password)
+	//	if err := cmd.Run(); err != nil {
+	//		c.Logger().Errorf("Initialize script error : %v", err)
+	//		return c.NoContent(http.StatusInternalServerError)
+	//	}
+	//}
+	os.Exit(34)
 
 	return c.JSON(http.StatusOK, InitializeResponse{
 		Language: "go",
