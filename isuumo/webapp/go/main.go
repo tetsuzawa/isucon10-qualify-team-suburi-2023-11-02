@@ -28,7 +28,6 @@ const (
 
 var (
 	db                    *sqlx.DB
-	mySQLConnectionData   *MySQLConnectionEnv
 	chairSearchCondition  ChairSearchCondition
 	estateSearchCondition EstateSearchCondition
 )
@@ -303,6 +302,7 @@ func initialize(c echo.Context) error {
 		filepath.Join(sqlDir, "2_DummyChairData.sql"),
 	}
 
+	mySQLConnectionData := NewMySQLConnectionEnv()
 	for _, p := range paths {
 		sqlFile, _ := filepath.Abs(p)
 		cmdStr := fmt.Sprintf("mysql -h %v -u %v -p%v -P %v %v < %v",
