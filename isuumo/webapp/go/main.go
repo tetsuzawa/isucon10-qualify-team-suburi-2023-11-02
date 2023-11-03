@@ -25,6 +25,8 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 )
 
+//go:generate go run github.com/mackee/go-sqlla/v2/cmd/sqlla
+
 const (
 	Limit        = 20
 	NazotteLimit = 50
@@ -41,6 +43,7 @@ type InitializeResponse struct {
 	Language string `json:"language"`
 }
 
+//sqlla:table chair
 type Chair struct {
 	ID            int64  `db:"id" json:"id"`
 	Name          string `db:"name" json:"name"`
@@ -72,6 +75,8 @@ type ChairListResponse struct {
 }
 
 // Estate 物件
+//
+//sqlla:table estate
 type Estate struct {
 	ID          int64   `db:"id" json:"id"`
 	Thumbnail   string  `db:"thumbnail" json:"thumbnail"`
@@ -388,8 +393,8 @@ func postChair(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	chairs := make([]Chair, len(records))
-	for i, row := range records {
+	bi := NewChairSQL().BulkInsert()
+	for _, row := range records {
 		rm := RecordMapper{Record: row}
 		id := rm.NextInt()
 		name := rm.NextString()
@@ -408,24 +413,24 @@ func postChair(c echo.Context) error {
 			c.Logger().Errorf("failed to read record: %v", err)
 			return c.NoContent(http.StatusBadRequest)
 		}
-		chairs[i] = Chair{
-			ID:            int64(id),
-			Name:          name,
-			Description:   description,
-			Thumbnail:     thumbnail,
-			Price:         int64(price),
-			Height:        int64(height),
-			Width:         int64(width),
-			Depth:         int64(depth),
-			Color:         color,
-			Features:      features,
-			Kind:          kind,
-			Popularity:    int64(popularity),
-			Stock:         int64(stock),
-			FeaturesArray: features,
-		}
+		bi.Append(
+			NewChairSQL().Insert().
+				ValueID(int64(id)).
+				ValueName(name).
+				ValueDescription(description).
+				ValueThumbnail(thumbnail).
+				ValuePrice(int64(price)).
+				ValueHeight(int64(height)).
+				ValueWidth(int64(width)).
+				ValueDepth(int64(depth)).
+				ValueColor(color).
+				ValueFeatures(features).
+				ValueKind(kind).
+				ValuePopularity(int64(popularity)).
+				ValueStock(int64(stock)),
+		)
 	}
-	if _, err := db.NamedExecContext(ctx, "INSERT INTO chair(id, name, description, thumbnail, price, height, width, depth, color, features, kind, popularity, stock) VALUES(:id, :name, :description, :thumbnail, :price, :height, :width, :depth, :color, :features, :kind, :popularity, :stock)", chairs); err != nil {
+	if _, err := bi.ExecContext(ctx, db); err != nil {
 		c.Logger().Errorf("failed to insert chair: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
