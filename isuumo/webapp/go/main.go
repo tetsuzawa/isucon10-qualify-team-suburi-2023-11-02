@@ -709,6 +709,8 @@ func searchEstates(c echo.Context) error {
 		params = append(params, c.QueryParam("doorHeightRangeId"))
 	}
 
+	c.Echo().Logger.Debug("request uri: ", c.Request().RequestURI)
+	c.Echo().Logger.Debug("doorWidthRangeId: ", c.QueryParam("doorWidthRangeId"))
 	if c.QueryParam("doorWidthRangeId") != "" {
 		conditions = append(conditions, "door_width_range = ?")
 		params = append(params, c.QueryParam("doorWidthRangeID"))
