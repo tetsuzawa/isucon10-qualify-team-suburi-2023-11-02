@@ -37,6 +37,8 @@ CREATE TABLE isuumo.chair
     stock       INTEGER         NOT NULL
 );
 
+create index estate_latitude_longitude_popularity_id_index
+    on isuumo.estate (latitude asc, longitude asc, popularity desc, id asc);
 
 create index estate_popularity_id_index
     on isuumo.estate (popularity desc, id asc);
