@@ -6,7 +6,6 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
-	"io/fs"
 	"net/http"
 	"os"
 	"strconv"
@@ -320,16 +319,8 @@ func initialize(c echo.Context) error {
 		os.Exit(1)
 	}
 
-	if err := os.RemoveAll("/var/cache/nginx"); err != nil {
-		fmt.Printf("removing /var/cache/nginx...%v\n", err)
-		os.Exit(1)
-	}
-	if err := os.Mkdir("/var/cache/nginx", fs.ModeDir); err != nil {
-		fmt.Printf("mkdir /var/cache/nginx ...%v\n", err)
-		os.Exit(1)
-	}
-	if err := os.Chown("/var/cache/nginx", 0, 0); err != nil {
-		fmt.Printf("chown /var/cache/nginx ...%v\n", err)
+	if err := os.RemoveAll("/var/cache/nginx/*"); err != nil {
+		fmt.Printf("removing /var/cache/nginx/*...%v\n", err)
 		os.Exit(1)
 	}
 
