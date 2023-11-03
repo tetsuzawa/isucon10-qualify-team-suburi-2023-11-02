@@ -653,8 +653,8 @@ func postEstate(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	estates := make([]Estate, len(records))
-	for i, row := range records {
+	bi := NewEstateSQL().BulkInsert()
+	for _, row := range records {
 		rm := RecordMapper{Record: row}
 		id := rm.NextInt()
 		name := rm.NextString()
@@ -672,22 +672,23 @@ func postEstate(c echo.Context) error {
 			c.Logger().Errorf("failed to read record: %v", err)
 			return c.NoContent(http.StatusBadRequest)
 		}
-		estates[i] = Estate{
-			ID:          int64(id),
-			Thumbnail:   thumbnail,
-			Name:        name,
-			Description: description,
-			Latitude:    latitude,
-			Longitude:   longitude,
-			Address:     address,
-			Rent:        int64(rent),
-			DoorHeight:  int64(doorHeight),
-			DoorWidth:   int64(doorWidth),
-			Features:    features,
-			Popularity:  int64(popularity),
-		}
+		bi.Append(
+			NewEstateSQL().Insert().
+				ValueID(int64(id)).
+				ValueThumbnail(thumbnail).
+				ValueName(name).
+				ValueDescription(description).
+				ValueLatitude(latitude).
+				ValueLongitude(longitude).
+				ValueAddress(address).
+				ValueRent(int64(rent)).
+				ValueDoorHeight(int64(doorHeight)).
+				ValueDoorWidth(int64(doorWidth)).
+				ValueFeatures(features).
+				ValuePopularity(int64(popularity)),
+		)
 	}
-	if _, err := db.NamedExecContext(ctx, "INSERT INTO estate(id, name, description, thumbnail, address, latitude, longitude, rent, door_height, door_width, features, popularity) VALUES(:id, :name, :description, :thumbnail, :address, :latitude, :longitude, :rent, :door_height, :door_width, :features, :popularity)", estates); err != nil {
+	if _, err := bi.ExecContext(ctx, db); err != nil {
 		c.Logger().Errorf("failed to insert estate: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
