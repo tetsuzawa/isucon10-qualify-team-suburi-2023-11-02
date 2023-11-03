@@ -27,7 +27,8 @@ sudo journalctl -xe -ocat -u openresty.service --since="${prepared_time}" > "${n
 #ALPM="/@.+,/posts/\d+,/image/\d+.(jpg|png|gif),/posts?max_created_at.*$"
 #ALPM="/api/courses/[a-zA-Z0-9]+$,/api/courses/[a-zA-Z0-9]+/status,/api/courses/[a-zA-Z0-9]+/classes,/api/courses/[a-zA-Z0-9]+/classes/[a-zA-Z0-9]+/assignments,/api/courses/[a-zA-Z0-9]+/classes/[a-zA-Z0-9]+/assignments/scores,/api/courses/[a-zA-Z0-9]+/classes/[a-zA-Z0-9]+/assignments/export,/api/announcements/[a-zA-Z0-9]+$"
 #ALPM="/initialize,/api/admin/clarifications,/api/admin/clarifications/\d,/api/session,/api/audience/teams,/api/audience/dashboard,/api/registration/session,/api/registration/team,/api/registration/contestant,/api/registration,/api/registration,/api/contestant/benchmark_jobs,/api/contestant/benchmark_jobs/\d,/api/contestant/clarifications,/api/contestant/clarifications,/api/contestant/dashboard,/api/contestant/notifications,/api/contestant/push_subscriptions,/api/contestant/push_subscriptions,/api/signup,/api/login,/api/logout"
-ALPM="/api/chair/[A-Za-z0-9_]+,/api/chair/buy/[A-Za-z0-9_]+,/api/estate/[A-Za-z0-9_]+,/api/estate/req_doc/[A-Za-z0-9_]+,/api/recommended_estate/[A-Za-z0-9_]+"
+#ALPM="/api/chair/[A-Za-z0-9_]+,/api/chair/buy/[A-Za-z0-9_]+,/api/estate/[A-Za-z0-9_]+,/api/estate/req_doc/[A-Za-z0-9_]+,/api/recommended_estate/[A-Za-z0-9_]+"
+ALPM="/api/chair/\d+,/api/chair/buy/\d+,/api/estate/\d+,/api/estate/req_doc/\d+,/api/recommended_estate/\d+"
 
 OUTFORMT=count,1xx,2xx,3xx,4xx,5xx,method,uri,min,max,sum,avg,p95,min_body,max_body,avg_body
 touch ${result_dir}/alp.md
