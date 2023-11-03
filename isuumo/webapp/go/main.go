@@ -6,13 +6,14 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
-	"github.com/redis/go-redis/v9"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/redis/go-redis/v9"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
@@ -590,41 +591,24 @@ func buyChair(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	tx, err := db.BeginTxx(ctx, nil)
-	if err != nil {
-		c.Echo().Logger.Errorf("failed to create transaction : %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	defer tx.Rollback()
 
-	var chair Chair
-	err = tx.QueryRowxContext(ctx, "SELECT * FROM chair WHERE id = ? AND stock > 0 FOR UPDATE", id).StructScan(&chair)
-	if err != nil {
+	var stock int64
+	row := db.QueryRowContext(ctx, "UPDATE chair SET stock = stock - 1 WHERE id = ? AND stock > 0 RETURNING stock", id)
+	if err := row.Scan(&stock); err != nil {
 		if err == sql.ErrNoRows {
 			c.Echo().Logger.Infof("buyChair chair id \"%v\" not found", id)
 			return c.NoContent(http.StatusNotFound)
 		}
-		c.Echo().Logger.Errorf("DB Execution Error: on getting a chair by id : %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-
-	_, err = tx.ExecContext(ctx, "UPDATE chair SET stock = stock - 1 WHERE id = ?", id)
-	if err != nil {
 		c.Echo().Logger.Errorf("chair stock update failed : %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	// 残り1つを購入したことになるので在庫切れリストに追加する
-	if (chair.Stock - 1) == 0 {
+	if stock == 0 {
 		if err := rdb.SAdd(c.Request().Context(), soldOutChairKey, id).Err(); err != nil {
 			c.Echo().Logger.Errorf("failed to insert sold_out_chair to redis, id: %v", id)
 			return c.NoContent(http.StatusInsufficientStorage)
 		}
-	}
-	err = tx.Commit()
-	if err != nil {
-		c.Echo().Logger.Errorf("transaction commit error : %v", err)
-		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	return c.NoContent(http.StatusOK)
@@ -705,7 +689,7 @@ func postEstate(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	tx, err := db.BeginTx(ctx, nil)
+	tx, err := db.BeginTxx(ctx, nil)
 	if err != nil {
 		c.Logger().Errorf("failed to begin tx: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -729,7 +713,7 @@ func postEstate(c echo.Context) error {
 			c.Logger().Errorf("failed to read record: %v", err)
 			return c.NoContent(http.StatusBadRequest)
 		}
-		_, err := tx.ExecContext(ctx, "INSERT INTO estate(id, name, description, thumbnail, address, latitude, longitude, rent, door_height, door_width, features, popularity) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)", id, name, description, thumbnail, address, latitude, longitude, rent, doorHeight, doorWidth, features, popularity)
+		_, err := tx.NamedExecContext(ctx, "INSERT INTO estate(id, name, description, thumbnail, address, latitude, longitude, rent, door_height, door_width, features, popularity) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)", id, name, description, thumbnail, address, latitude, longitude, rent, doorHeight, doorWidth, features, popularity)
 		if err != nil {
 			c.Logger().Errorf("failed to insert estate: %v", err)
 			return c.NoContent(http.StatusInternalServerError)
