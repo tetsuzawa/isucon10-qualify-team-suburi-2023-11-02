@@ -46,6 +46,7 @@ type Chair struct {
 	Description   string `db:"description" json:"description"`
 	Thumbnail     string `db:"thumbnail" json:"thumbnail"`
 	Price         int64  `db:"price" json:"price"`
+	PriceRange    int64  `db:"price_range" json:"-"`
 	Height        int64  `db:"height" json:"height"`
 	Width         int64  `db:"width" json:"width"`
 	Depth         int64  `db:"depth" json:"depth"`
@@ -55,7 +56,6 @@ type Chair struct {
 	Popularity    int64  `db:"popularity" json:"-"`
 	Stock         int64  `db:"stock" json:"-"`
 	FeaturesArray string `db:"features_array" json:"-"`
-	PriceRange    int64  `db:"price_range" json:"-"`
 }
 
 type ChairSearchResponse struct {
