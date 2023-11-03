@@ -837,9 +837,9 @@ func searchRecommendedEstateWithChair(c echo.Context) error {
 	sorted := []int64{chair.Width, chair.Depth, chair.Height}
 	slices.Sort(sorted)
 	l1, l2 := sorted[0], sorted[1]
-	query = `SELECT * from (select * from estate where door_width >= ? AND door_height >= ? ORDER BY popularity DESC id limit ?) as t
+	query = `SELECT * from (select * from estate where door_width >= ? AND door_height >= ? ORDER BY popularity DESC ,id limit ?) as t
 union
-SELECT * from  (select * from estate where door_width >= ? AND door_height >= ? ORDER BY popularity DESC id limit ?) as t2 ORDER BY popularity DESC id limit ?;`
+SELECT * from  (select * from estate where door_width >= ? AND door_height >= ? ORDER BY popularity DESC ,id limit ?) as t2 ORDER BY popularity DESC ,id limit ?;`
 	err = estateDB.SelectContext(ctx, &estates, query, l1, l2, Limit, l2, l1, Limit, Limit)
 	if err != nil {
 		if err == sql.ErrNoRows {
