@@ -136,7 +136,7 @@ type BoundingBox struct {
 	BottomRightCorner Coordinate
 }
 
-type MySQLConnectionEnv struct {
+type PostgresEnv struct {
 	Host     string
 	Port     string
 	User     string
@@ -202,13 +202,13 @@ func (r *RecordMapper) Err() error {
 	return r.err
 }
 
-func NewMySQLConnectionEnv() *MySQLConnectionEnv {
-	return &MySQLConnectionEnv{
-		Host:     getEnv("MYSQL_HOST", "127.0.0.1"),
-		Port:     getEnv("MYSQL_PORT", "3306"),
-		User:     getEnv("MYSQL_USER", "isucon"),
-		DBName:   getEnv("MYSQL_DBNAME", "isuumo"),
-		Password: getEnv("MYSQL_PASS", "isucon"),
+func NewPostgresEnv() *PostgresEnv {
+	return &PostgresEnv{
+		Host:     getEnv("DB_HOSTNAME", "127.0.0.1"),
+		Port:     getEnv("DB_PORT", "5432"),
+		User:     getEnv("DB_USER", "isucon"),
+		DBName:   getEnv("DB_DBNAME", "isuumo"),
+		Password: getEnv("DB_PASS", "isucon"),
 	}
 }
 
@@ -221,7 +221,7 @@ func getEnv(key, defaultValue string) string {
 }
 
 // ConnectDB isuumoデータベースに接続する
-func (mc *MySQLConnectionEnv) ConnectDB() (*sqlx.DB, error) {
+func (mc *PostgresEnv) ConnectDB() (*sqlx.DB, error) {
 	dsn := fmt.Sprintf("%v:%v@tcp(%v:%v)/%v", mc.User, mc.Password, mc.Host, mc.Port, mc.DBName)
 	return sqlx.Open("mysql", dsn)
 }
@@ -302,18 +302,18 @@ func initialize(c echo.Context) error {
 		filepath.Join(sqlDir, "2_DummyChairData.sql"),
 	}
 
-	mySQLConnectionData := NewMySQLConnectionEnv()
+	pgConnectionData := NewPostgresEnv()
 	for _, p := range paths {
 		sqlFile, _ := filepath.Abs(p)
-		cmdStr := fmt.Sprintf("mysql -h %v -u %v -p%v -P %v %v < %v",
-			mySQLConnectionData.Host,
-			mySQLConnectionData.User,
-			mySQLConnectionData.Password,
-			mySQLConnectionData.Port,
-			mySQLConnectionData.DBName,
+		cmdStr := fmt.Sprintf("psql -h %v -U %v -d %v -f %v",
+			pgConnectionData.Host,
+			pgConnectionData.User,
+			pgConnectionData.DBName,
 			sqlFile,
 		)
-		if err := exec.Command("bash", "-c", cmdStr).Run(); err != nil {
+		cmd := exec.Command("bash", "-c", cmdStr)
+		cmd.Env = append(cmd.Env, "PGPASSWORD="+pgConnectionData.Password)
+		if err := cmd.Run(); err != nil {
 			c.Logger().Errorf("Initialize script error : %v", err)
 			return c.NoContent(http.StatusInternalServerError)
 		}
@@ -491,8 +491,9 @@ func searchChairs(c echo.Context) error {
 
 	if c.QueryParam("features") != "" {
 		for _, f := range strings.Split(c.QueryParam("features"), ",") {
-			conditions = append(conditions, "features LIKE CONCAT('%', ?, '%')")
-			params = append(params, f)
+			c := "%" + f + "%"
+			conditions = append(conditions, "features LIKE ?")
+			params = append(params, c)
 		}
 	}
 
@@ -766,8 +767,9 @@ func searchEstates(c echo.Context) error {
 
 	if c.QueryParam("features") != "" {
 		for _, f := range strings.Split(c.QueryParam("features"), ",") {
-			conditions = append(conditions, "features like concat('%', ?, '%')")
-			params = append(params, f)
+			c := "%" + f + "%"
+			conditions = append(conditions, "features like ?")
+			params = append(params, c)
 		}
 	}
 
@@ -795,6 +797,7 @@ func searchEstates(c echo.Context) error {
 
 	ctx := c.Request().Context()
 	var res EstateSearchResponse
+	fmt.Println(countQuery + searchCondition)
 	err = db.GetContext(ctx, &res.Count, countQuery+searchCondition, params...)
 	if err != nil {
 		c.Logger().Errorf("searchEstates DB execution error : %v", err)
