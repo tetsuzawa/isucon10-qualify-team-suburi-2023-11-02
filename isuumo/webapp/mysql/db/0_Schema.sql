@@ -37,6 +37,8 @@ CREATE TABLE isuumo.chair
     stock       INTEGER         NOT NULL
 );
 
+create index estate_latitude_longitude_popularity_id_index
+    on isuumo.estate (latitude asc, longitude asc, popularity desc, id asc);
 
 create index estate_popularity_id_index
     on isuumo.estate (popularity desc, id asc);
@@ -83,6 +85,7 @@ ADD COLUMN depth_range int GENERATED ALWAYS AS (CASE WHEN depth < 80 THEN 0 WHEN
 
 create index chair_depth_range_popularity_id_index
     on isuumo.chair (depth_range asc, popularity desc, id asc);
+<<<<<<< HEAD
 
 -- estate
 ALTER TABLE isuumo.estate ADD COLUMN features_array text[] GENERATED ALWAYS AS (regexp_split_to_array(features, ',')) STORED;
@@ -106,3 +109,5 @@ ADD COLUMN door_width_range int GENERATED ALWAYS AS (CASE WHEN door_width < 80 T
 
 create index estate_door_width_range_popularity_id_index
     on isuumo.estate (door_width_range asc, popularity desc, id asc);
+=======
+>>>>>>> 49d7ecd75ffaa75f0c320bbdd0ae8a016617e27d
