@@ -12,13 +12,13 @@ func startPyroscope() *pyroscope.Profiler {
 	blockProfileRate := 1
 	runtime.SetBlockProfileRate(blockProfileRate) // ・・・(2)
 	p, err := pyroscope.Start(pyroscope.Config{
-		ApplicationName: "calculator",
+		ApplicationName: "isuumo",
 		ServerAddress:   GetEnv("PYROSCOPE_SERVER", "monitoring:4040"),
 		Logger:          pyroscope.StandardLogger,
 
 		// タグを設定することで、タグ指定でのプロファイル表示や、タグ間のプロファイル比較ができ便利です
 		Tags: map[string]string{
-			"hostname": "calculator",
+			"hostname": "isuumo",
 			"version":  GetEnv("APP_VERSION", "000000"),
 		},
 
