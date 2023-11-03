@@ -39,20 +39,20 @@ type InitializeResponse struct {
 }
 
 type Chair struct {
-	ID            int64    `db:"id" json:"id"`
-	Name          string   `db:"name" json:"name"`
-	Description   string   `db:"description" json:"description"`
-	Thumbnail     string   `db:"thumbnail" json:"thumbnail"`
-	Price         int64    `db:"price" json:"price"`
-	Height        int64    `db:"height" json:"height"`
-	Width         int64    `db:"width" json:"width"`
-	Depth         int64    `db:"depth" json:"depth"`
-	Color         string   `db:"color" json:"color"`
-	Features      string   `db:"features" json:"features"`
-	Kind          string   `db:"kind" json:"kind"`
-	Popularity    int64    `db:"popularity" json:"-"`
-	Stock         int64    `db:"stock" json:"-"`
-	FeaturesArray []string `db:"features_array" json:"-"`
+	ID            int64  `db:"id" json:"id"`
+	Name          string `db:"name" json:"name"`
+	Description   string `db:"description" json:"description"`
+	Thumbnail     string `db:"thumbnail" json:"thumbnail"`
+	Price         int64  `db:"price" json:"price"`
+	Height        int64  `db:"height" json:"height"`
+	Width         int64  `db:"width" json:"width"`
+	Depth         int64  `db:"depth" json:"depth"`
+	Color         string `db:"color" json:"color"`
+	Features      string `db:"features" json:"features"`
+	Kind          string `db:"kind" json:"kind"`
+	Popularity    int64  `db:"popularity" json:"-"`
+	Stock         int64  `db:"stock" json:"-"`
+	FeaturesArray string `db:"features_array" json:"-"`
 }
 
 type ChairSearchResponse struct {
