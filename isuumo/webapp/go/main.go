@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/csv"
 	"encoding/json"
@@ -17,6 +18,7 @@ import (
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
 	"github.com/labstack/gommon/log"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 )
 
 const (
@@ -242,6 +244,13 @@ func init() {
 }
 
 func main() {
+	tp, _ := initTracer(context.Background())
+	defer func() {
+		if err := tp.Shutdown(context.Background()); err != nil {
+			panic(err)
+		}
+	}()
+
 	// Echo instance
 	e := echo.New()
 	e.Debug = true
@@ -250,6 +259,7 @@ func main() {
 	// Middleware
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
+	e.Use(otelecho.Middleware("isuumo"))
 
 	// Initialize
 	e.POST("/initialize", initialize)
