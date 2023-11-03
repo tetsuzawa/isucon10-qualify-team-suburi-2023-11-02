@@ -46,6 +46,7 @@ type Chair struct {
 	Description   string `db:"description" json:"description"`
 	Thumbnail     string `db:"thumbnail" json:"thumbnail"`
 	Price         int64  `db:"price" json:"price"`
+	PriceRange    int64  `db:"price_range" json:"-"`
 	Height        int64  `db:"height" json:"height"`
 	Width         int64  `db:"width" json:"width"`
 	Depth         int64  `db:"depth" json:"depth"`
@@ -55,7 +56,6 @@ type Chair struct {
 	Popularity    int64  `db:"popularity" json:"-"`
 	Stock         int64  `db:"stock" json:"-"`
 	FeaturesArray string `db:"features_array" json:"-"`
-	priceRange    int64  `db:"price_range" json:"-"`
 }
 
 type ChairSearchResponse struct {
@@ -427,20 +427,22 @@ func searchChairs(c echo.Context) error {
 	params := make([]interface{}, 0)
 
 	if c.QueryParam("priceRangeId") != "" {
-		chairPrice, err := getRange(chairSearchCondition.Price, c.QueryParam("priceRangeId"))
-		if err != nil {
-			c.Echo().Logger.Infof("priceRangeID invalid, %v : %v", c.QueryParam("priceRangeId"), err)
-			return c.NoContent(http.StatusBadRequest)
-		}
-
-		if chairPrice.Min != -1 {
-			conditions = append(conditions, "price >= ?")
-			params = append(params, chairPrice.Min)
-		}
-		if chairPrice.Max != -1 {
-			conditions = append(conditions, "price < ?")
-			params = append(params, chairPrice.Max)
-		}
+		//chairPrice, err := getRange(chairSearchCondition.Price, c.QueryParam("priceRangeId"))
+		//if err != nil {
+		//	c.Echo().Logger.Infof("priceRangeID invalid, %v : %v", c.QueryParam("priceRangeId"), err)
+		//	return c.NoContent(http.StatusBadRequest)
+		//}
+		//
+		//if chairPrice.Min != -1 {
+		//	conditions = append(conditions, "price >= ?")
+		//	params = append(params, chairPrice.Min)
+		//}
+		//if chairPrice.Max != -1 {
+		//	conditions = append(conditions, "price < ?")
+		//	params = append(params, chairPrice.Max)
+		//}
+		conditions = append(conditions, "price_range = ?")
+		params = append(params, c.QueryParam("priceRangeId"))
 	}
 
 	if c.QueryParam("heightRangeId") != "" {
