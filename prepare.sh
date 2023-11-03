@@ -73,7 +73,7 @@ sudo systemctl restart openresty
 # sudo systemctl restart mysql
 
 # ====== redis ======
-# sudo systemctl restart redis-server
+sudo systemctl restart redis-server
 
 # slow log
 # MYSQL="mysql -h${DB_HOST} -P${DB_PORT} -u${DB_USER} -p${DB_PASS} ${DB_DATABASE}"
