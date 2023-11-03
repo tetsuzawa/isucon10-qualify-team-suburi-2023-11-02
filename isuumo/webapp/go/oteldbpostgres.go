@@ -1,4 +1,4 @@
-package gotemplates
+package main
 
 import (
 	"database/sql"
