@@ -73,19 +73,22 @@ type ChairListResponse struct {
 
 // Estate 物件
 type Estate struct {
-	ID            int64   `db:"id" json:"id"`
-	Thumbnail     string  `db:"thumbnail" json:"thumbnail"`
-	Name          string  `db:"name" json:"name"`
-	Description   string  `db:"description" json:"description"`
-	Latitude      float64 `db:"latitude" json:"latitude"`
-	Longitude     float64 `db:"longitude" json:"longitude"`
-	Address       string  `db:"address" json:"address"`
-	Rent          int64   `db:"rent" json:"rent"`
-	DoorHeight    int64   `db:"door_height" json:"doorHeight"`
-	DoorWidth     int64   `db:"door_width" json:"doorWidth"`
-	Features      string  `db:"features" json:"features"`
-	Popularity    int64   `db:"popularity" json:"-"`
-	FeaturesArray string  `db:"features_array" json:"-"`
+	ID              int64   `db:"id" json:"id"`
+	Thumbnail       string  `db:"thumbnail" json:"thumbnail"`
+	Name            string  `db:"name" json:"name"`
+	Description     string  `db:"description" json:"description"`
+	Latitude        float64 `db:"latitude" json:"latitude"`
+	Longitude       float64 `db:"longitude" json:"longitude"`
+	Address         string  `db:"address" json:"address"`
+	Rent            int64   `db:"rent" json:"rent"`
+	DoorHeight      int64   `db:"door_height" json:"doorHeight"`
+	DoorWidth       int64   `db:"door_width" json:"doorWidth"`
+	Features        string  `db:"features" json:"features"`
+	Popularity      int64   `db:"popularity" json:"-"`
+	FeaturesArray   string  `db:"features_array" json:"-"`
+	RentRange       int64   `db:"rent_range" json:"-"`
+	DoorHeightRange int64   `db:"door_height_range" json:"-"`
+	DoorWidthRange  int64   `db:"door_width_range" json:"-"`
 }
 
 // EstateSearchResponse estate/searchへのレスポンスの形式
@@ -690,15 +693,8 @@ func searchEstates(c echo.Context) error {
 			c.Echo().Logger.Infof("doorHeightRangeID invalid, %v : %v", c.QueryParam("doorHeightRangeId"), err)
 			return c.NoContent(http.StatusBadRequest)
 		}
-
-		if doorHeight.Min != -1 {
-			conditions = append(conditions, "door_height >= ?")
-			params = append(params, doorHeight.Min)
-		}
-		if doorHeight.Max != -1 {
-			conditions = append(conditions, "door_height < ?")
-			params = append(params, doorHeight.Max)
-		}
+		conditions = append(conditions, "door_height_range = ?")
+		params = append(params, c.QueryParam("doorHeightRangeId"))
 	}
 
 	if c.QueryParam("doorWidthRangeId") != "" {
@@ -707,15 +703,8 @@ func searchEstates(c echo.Context) error {
 			c.Echo().Logger.Infof("doorWidthRangeID invalid, %v : %v", c.QueryParam("doorWidthRangeId"), err)
 			return c.NoContent(http.StatusBadRequest)
 		}
-
-		if doorWidth.Min != -1 {
-			conditions = append(conditions, "door_width >= ?")
-			params = append(params, doorWidth.Min)
-		}
-		if doorWidth.Max != -1 {
-			conditions = append(conditions, "door_width < ?")
-			params = append(params, doorWidth.Max)
-		}
+		conditions = append(conditions, "door_width_range = ?")
+		params = append(params, c.QueryParam("doorWidthRangeID"))
 	}
 
 	if c.QueryParam("rentRangeId") != "" {
@@ -724,15 +713,8 @@ func searchEstates(c echo.Context) error {
 			c.Echo().Logger.Infof("rentRangeID invalid, %v : %v", c.QueryParam("rentRangeId"), err)
 			return c.NoContent(http.StatusBadRequest)
 		}
-
-		if estateRent.Min != -1 {
-			conditions = append(conditions, "rent >= ?")
-			params = append(params, estateRent.Min)
-		}
-		if estateRent.Max != -1 {
-			conditions = append(conditions, "rent < ?")
-			params = append(params, estateRent.Max)
-		}
+		conditions = append(conditions, "rent_range = ?")
+		params = append(params, c.QueryParam("rentRangeId"))
 	}
 
 	if c.QueryParam("features") != "" {
