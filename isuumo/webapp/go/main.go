@@ -705,28 +705,16 @@ func searchEstates(c echo.Context) error {
 	params := make([]interface{}, 0)
 
 	if c.QueryParam("doorHeightRangeId") != "" {
-		if err != nil {
-			c.Echo().Logger.Infof("doorHeightRangeID invalid, %v : %v", c.QueryParam("doorHeightRangeId"), err)
-			return c.NoContent(http.StatusBadRequest)
-		}
 		conditions = append(conditions, "door_height_range = ?")
 		params = append(params, c.QueryParam("doorHeightRangeId"))
 	}
 
 	if c.QueryParam("doorWidthRangeId") != "" {
-		if err != nil {
-			c.Echo().Logger.Infof("doorWidthRangeID invalid, %v : %v", c.QueryParam("doorWidthRangeId"), err)
-			return c.NoContent(http.StatusBadRequest)
-		}
 		conditions = append(conditions, "door_width_range = ?")
 		params = append(params, c.QueryParam("doorWidthRangeID"))
 	}
 
 	if c.QueryParam("rentRangeId") != "" {
-		if err != nil {
-			c.Echo().Logger.Infof("rentRangeID invalid, %v : %v", c.QueryParam("rentRangeId"), err)
-			return c.NoContent(http.StatusBadRequest)
-		}
 		conditions = append(conditions, "rent_range = ?")
 		params = append(params, c.QueryParam("rentRangeId"))
 	}
