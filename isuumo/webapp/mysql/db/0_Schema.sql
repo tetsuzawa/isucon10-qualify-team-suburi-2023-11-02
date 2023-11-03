@@ -50,3 +50,9 @@ create index estate_rent_id_index
 ALTER TABLE isuumo.chair ADD COLUMN features_array text[] GENERATED ALWAYS AS (regexp_split_to_array(features, ',')) STORED;
 
 CREATE INDEX idx_features_array ON chair USING gin(features_array);
+
+ALTER TABLE isuumo.chair
+ADD COLUMN price_range int GENERATED ALWAYS AS (CASE WHEN price < 3000 THEN 0 WHEN 3000 <= price and price < 6000 THEN 1 WHEN 6000 <= price and price < 9000 THEN 2 WHEN 9000 <= price and price < 12000 THEN 3 WHEN 12000 <= price and price < 15000 THEN 4 WHEN 15000 <= price THEN 5 END) STORED;
+
+create index chair_price_range_popularity_id_index
+    on isuumo.chair (price_range asc, popularity desc, id asc);
