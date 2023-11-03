@@ -33,7 +33,8 @@ const (
 )
 
 var (
-	db                    *sqlx.DB
+	chairDB               *sqlx.DB
+	estateDB              *sqlx.DB
 	rdb                   *redis.Client
 	chairSearchCondition  ChairSearchCondition
 	estateSearchCondition EstateSearchCondition
@@ -301,12 +302,19 @@ func main() {
 	e.GET("/api/recommended_estate/:id", searchRecommendedEstateWithChair)
 
 	var err error
-	db, err = GetDB()
+	estateDB, err = GetDB(GetEnv("DB_HOSTNAME1", "192.168.0.12"))
 	if err != nil {
 		e.Logger.Fatalf("DB connection failed : %v", err)
 	}
-	db.SetMaxOpenConns(10)
-	defer db.Close()
+	estateDB.SetMaxOpenConns(10)
+	defer estateDB.Close()
+
+	chairDB, err = GetDB(GetEnv("DB_HOSTNAME2", "192.168.0.13"))
+	if err != nil {
+		e.Logger.Fatalf("DB connection failed : %v", err)
+	}
+	chairDB.SetMaxOpenConns(10)
+	defer chairDB.Close()
 
 	rdb = redis.NewClient(&redis.Options{
 		Addr:     GetEnv("REDIS_HOSTNAME", "127.0.0.1") + ":6379",
@@ -368,7 +376,7 @@ func getChairDetail(c echo.Context) error {
 	ctx := c.Request().Context()
 	chair := Chair{}
 	query := `SELECT * FROM chair WHERE id = ?`
-	err = db.GetContext(ctx, &chair, query, id)
+	err = chairDB.GetContext(ctx, &chair, query, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			c.Echo().Logger.Infof("requested id's chair not found : %v", id)
@@ -440,7 +448,7 @@ func postChair(c echo.Context) error {
 				ValueStock(int64(stock)),
 		)
 	}
-	if _, err := bi.ExecContext(ctx, db); err != nil {
+	if _, err := bi.ExecContext(ctx, chairDB); err != nil {
 		c.Logger().Errorf("failed to insert chair: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
@@ -521,7 +529,7 @@ func searchChairs(c echo.Context) error {
 
 	ctx := c.Request().Context()
 	var res ChairSearchResponse
-	err = db.GetContext(ctx, &res.Count, countQuery+searchCondition, params...)
+	err = chairDB.GetContext(ctx, &res.Count, countQuery+searchCondition, params...)
 	if err != nil {
 		c.Logger().Errorf("searchChairs DB execution error : %v", err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -529,7 +537,7 @@ func searchChairs(c echo.Context) error {
 
 	chairs := []Chair{}
 	params = append(params, perPage, page*perPage)
-	err = db.SelectContext(ctx, &chairs, searchQuery+searchCondition+limitOffset, params...)
+	err = chairDB.SelectContext(ctx, &chairs, searchQuery+searchCondition+limitOffset, params...)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return c.JSON(http.StatusOK, ChairSearchResponse{Count: 0, Chairs: []Chair{}})
@@ -567,7 +575,7 @@ func buyChair(c echo.Context) error {
 	ctx := c.Request().Context()
 
 	var stock int64
-	row := db.QueryRowContext(ctx, "UPDATE chair SET stock = stock - 1 WHERE id = ? AND stock > 0 RETURNING stock", id)
+	row := chairDB.QueryRowContext(ctx, "UPDATE chair SET stock = stock - 1 WHERE id = ? AND stock > 0 RETURNING stock", id)
 	if err := row.Scan(&stock); err != nil {
 		if err == sql.ErrNoRows {
 			c.Echo().Logger.Infof("buyChair chair id \"%v\" not found", id)
@@ -596,7 +604,7 @@ func getLowPricedChair(c echo.Context) error {
 	ctx := c.Request().Context()
 	var chairs []Chair
 	query := `SELECT * FROM chair WHERE stock > 0 ORDER BY price ASC, id ASC LIMIT ?`
-	err := db.SelectContext(ctx, &chairs, query, Limit)
+	err := chairDB.SelectContext(ctx, &chairs, query, Limit)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			c.Logger().Error("getLowPricedChair not found")
@@ -618,7 +626,7 @@ func getEstateDetail(c echo.Context) error {
 
 	ctx := c.Request().Context()
 	var estate Estate
-	err = db.GetContext(ctx, &estate, "SELECT * FROM estate WHERE id = ?", id)
+	err = estateDB.GetContext(ctx, &estate, "SELECT * FROM estate WHERE id = ?", id)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			c.Echo().Logger.Infof("getEstateDetail estate id %v not found", id)
@@ -698,7 +706,7 @@ func postEstate(c echo.Context) error {
 				ValuePopularity(int64(popularity)),
 		)
 	}
-	if _, err := bi.ExecContext(ctx, db); err != nil {
+	if _, err := bi.ExecContext(ctx, estateDB); err != nil {
 		c.Logger().Errorf("failed to insert estate: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
@@ -765,7 +773,7 @@ func searchEstates(c echo.Context) error {
 
 	ctx := c.Request().Context()
 	var res EstateSearchResponse
-	err = db.GetContext(ctx, &res.Count, countQuery+searchCondition, params...)
+	err = estateDB.GetContext(ctx, &res.Count, countQuery+searchCondition, params...)
 	if err != nil {
 		c.Logger().Errorf("searchEstates DB execution error : %v", err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -773,7 +781,7 @@ func searchEstates(c echo.Context) error {
 
 	estates := []Estate{}
 	params = append(params, perPage, page*perPage)
-	err = db.SelectContext(ctx, &estates, searchQuery+searchCondition+limitOffset, params...)
+	err = estateDB.SelectContext(ctx, &estates, searchQuery+searchCondition+limitOffset, params...)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return c.JSON(http.StatusOK, EstateSearchResponse{Count: 0, Estates: []Estate{}})
@@ -791,7 +799,7 @@ func getLowPricedEstate(c echo.Context) error {
 	ctx := c.Request().Context()
 	estates := make([]Estate, 0, Limit)
 	query := `SELECT * FROM estate ORDER BY rent ASC, id ASC LIMIT ?`
-	err := db.SelectContext(ctx, &estates, query, Limit)
+	err := estateDB.SelectContext(ctx, &estates, query, Limit)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			c.Logger().Error("getLowPricedEstate not found")
@@ -814,7 +822,7 @@ func searchRecommendedEstateWithChair(c echo.Context) error {
 	ctx := c.Request().Context()
 	chair := Chair{}
 	query := `SELECT * FROM chair WHERE id = ?`
-	err = db.GetContext(ctx, &chair, query, id)
+	err = chairDB.GetContext(ctx, &chair, query, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			c.Logger().Infof("Requested chair id \"%v\" not found", id)
@@ -829,7 +837,7 @@ func searchRecommendedEstateWithChair(c echo.Context) error {
 	h := chair.Height
 	d := chair.Depth
 	query = `SELECT * FROM estate WHERE (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) ORDER BY popularity DESC, id ASC LIMIT ?`
-	err = db.SelectContext(ctx, &estates, query, w, h, w, d, h, w, h, d, d, w, d, h, Limit)
+	err = estateDB.SelectContext(ctx, &estates, query, w, h, w, d, h, w, h, d, d, w, d, h, Limit)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return c.JSON(http.StatusOK, EstateListResponse{[]Estate{}})
@@ -857,7 +865,7 @@ func searchEstateNazotte(c echo.Context) error {
 	b := coordinates.getBoundingBox()
 	estatesInBoundingBox := []Estate{}
 	query := `SELECT * FROM estate WHERE latitude <= ? AND latitude >= ? AND longitude <= ? AND longitude >= ? ORDER BY popularity DESC, id ASC`
-	err = db.SelectContext(ctx, &estatesInBoundingBox, query, b.BottomRightCorner.Latitude, b.TopLeftCorner.Latitude, b.BottomRightCorner.Longitude, b.TopLeftCorner.Longitude)
+	err = estateDB.SelectContext(ctx, &estatesInBoundingBox, query, b.BottomRightCorner.Latitude, b.TopLeftCorner.Latitude, b.BottomRightCorner.Longitude, b.TopLeftCorner.Longitude)
 	if err == sql.ErrNoRows {
 		c.Echo().Logger.Infof("select * from estate where latitude ...", err)
 		return c.JSON(http.StatusOK, EstateSearchResponse{Count: 0, Estates: []Estate{}})
@@ -910,7 +918,7 @@ func postEstateRequestDocument(c echo.Context) error {
 	ctx := c.Request().Context()
 	estate := Estate{}
 	query := `SELECT * FROM estate WHERE id = ?`
-	err = db.GetContext(ctx, &estate, query, id)
+	err = estateDB.GetContext(ctx, &estate, query, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return c.NoContent(http.StatusNotFound)
