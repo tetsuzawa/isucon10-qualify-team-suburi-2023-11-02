@@ -272,10 +272,8 @@ func main() {
 	e.GET("/api/estate/search/condition", getEstateSearchCondition)
 	e.GET("/api/recommended_estate/:id", searchRecommendedEstateWithChair)
 
-	mySQLConnectionData = NewMySQLConnectionEnv()
-
 	var err error
-	db, err = mySQLConnectionData.ConnectDB()
+	db, err = GetDB()
 	if err != nil {
 		e.Logger.Fatalf("DB connection failed : %v", err)
 	}
