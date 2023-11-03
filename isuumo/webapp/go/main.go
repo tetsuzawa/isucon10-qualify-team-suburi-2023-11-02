@@ -321,8 +321,12 @@ func initialize(c echo.Context) error {
 		os.Exit(1)
 	}
 
-	if err := os.RemoveAll("/var/cache/nginx/*"); err != nil {
-		fmt.Printf("removing /var/cache/nginx/*...%v\n", err)
+	if err := os.RemoveAll("/var/cache/nginx/cache"); err != nil {
+		fmt.Printf("removing /var/cache/nginx/cache...%v\n", err)
+		os.Exit(1)
+	}
+	if err := os.RemoveAll("/var/cache/nginx/tmp"); err != nil {
+		fmt.Printf("removing /var/cache/nginx/tmp...%v\n", err)
 		os.Exit(1)
 	}
 
