@@ -338,6 +338,23 @@ func initialize(c echo.Context) error {
 		}
 	}
 
+	// 在庫0の修正
+	if err := rdb.FlushAll(c.Request().Context()).Err(); err != nil {
+		fmt.Printf("%v\n", err)
+		os.Exit(1)
+	}
+	var soldOutChairIDs []int64
+	err := db.SelectContext(c.Request().Context(), &soldOutChairIDs, "SELECT id FROM chair WHERE stock <= 0")
+	if err != nil {
+		fmt.Printf("%v\n", err)
+		os.Exit(1)
+	}
+	c.Echo().Logger.Infof(("sold out chiars on init: %v", len(soldOutChairIDs))
+	if err := rdb.SAdd(c.Request().Context(), soldOutChairKey, soldOutChairIDs).Err(); err != nil {
+		fmt.Printf("%v\n", err)
+		os.Exit(1)
+	}
+
 	return c.JSON(http.StatusOK, InitializeResponse{
 		Language: "go",
 	})
