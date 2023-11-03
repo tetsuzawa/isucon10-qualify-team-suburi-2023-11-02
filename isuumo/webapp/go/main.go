@@ -6,6 +6,7 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"github.com/redis/go-redis/v9"
 	"net/http"
 	"os"
 	"os/exec"
@@ -18,7 +19,8 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/labstack/gommon/log"
-	"github.com/redis/go-redis/v9"
+	"github.com/paulmach/orb"
+	"github.com/paulmach/orb/planar"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 )
 
@@ -920,21 +922,12 @@ func searchEstateNazotte(c echo.Context) error {
 	}
 
 	estatesInPolygon := []Estate{}
+	ring := coordinates.ring()
 	for _, estate := range estatesInBoundingBox {
-		validatedEstate := Estate{}
-
-		point := fmt.Sprintf("'POINT(%f %f)'", estate.Latitude, estate.Longitude)
-		query := fmt.Sprintf(`SELECT * FROM estate WHERE id = ? AND ST_Contains(ST_PolygonFromText(%s), ST_GeomFromText(%s))`, coordinates.coordinatesToText(), point)
-		err = db.GetContext(ctx, &validatedEstate, query, estate.ID)
-		if err != nil {
-			if err == sql.ErrNoRows {
-				continue
-			} else {
-				c.Echo().Logger.Errorf("db access is failed on executing validate if estate is in polygon : %v", err)
-				return c.NoContent(http.StatusInternalServerError)
-			}
+		if !planar.RingContains(ring, orb.Point{estate.Latitude, estate.Longitude}) {
+			continue
 		} else {
-			estatesInPolygon = append(estatesInPolygon, validatedEstate)
+			estatesInPolygon = append(estatesInPolygon, estate)
 		}
 	}
 
@@ -1014,6 +1007,14 @@ func (cs Coordinates) getBoundingBox() BoundingBox {
 		}
 	}
 	return boundingBox
+}
+
+func (cs Coordinates) ring() orb.Ring {
+	ring := make(orb.Ring, 0, len(cs.Coordinates))
+	for _, c := range cs.Coordinates {
+		ring = append(ring, orb.Point{c.Latitude, c.Longitude})
+	}
+	return ring
 }
 
 func (cs Coordinates) coordinatesToText() string {
