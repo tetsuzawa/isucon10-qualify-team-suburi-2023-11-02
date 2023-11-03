@@ -1,4 +1,3 @@
-require "resty.core"
 local ngx_re = require "ngx.re"
 local redis = require "resty.redis"
 
