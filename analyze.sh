@@ -18,7 +18,7 @@ result_dir=$HOME/result
 mkdir -p ${result_dir}
 
 # journal log
-sudo journalctl -xe -ocat -u isuumo.go.serice --since="${prepared_time}" > "${app_journal_log}"
+sudo journalctl -xe -ocat -u isuumo.go.service --since="${prepared_time}" > "${app_journal_log}"
 # sudo journalctl -xe -ocat -u nginx.service --since="${prepared_time}" > "${nginx_journal_log}"
 sudo journalctl -xe -ocat -u openresty.service --since="${prepared_time}" > "${nginx_journal_log}"
 
