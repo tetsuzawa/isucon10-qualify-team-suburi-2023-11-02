@@ -85,7 +85,6 @@ ADD COLUMN depth_range int GENERATED ALWAYS AS (CASE WHEN depth < 80 THEN 0 WHEN
 
 create index chair_depth_range_popularity_id_index
     on isuumo.chair (depth_range asc, popularity desc, id asc);
-<<<<<<< HEAD
 
 -- estate
 ALTER TABLE isuumo.estate ADD COLUMN features_array text[] GENERATED ALWAYS AS (regexp_split_to_array(features, ',')) STORED;
@@ -98,7 +97,7 @@ create index estate_rent_range_popularity_id_index
     on isuumo.estate (rent_range asc, popularity desc, id asc);
 
 -- 80cm未満: 0, 80cm以上110cm未満: 1, 110cm以上150cm未満: 2, 150cm以上: 3
-ALTER TABLE isuumo.estate
+ALTER TABLE isuumo.estate   
 ADD COLUMN door_height_range int GENERATED ALWAYS AS (CASE WHEN door_height < 80 THEN 0 WHEN 80 <= door_height and door_height < 110 THEN 1 WHEN 110 <= door_height and door_height < 150 THEN 2 WHEN 150 <= door_height THEN 3 END) STORED;
 
 create index estate_door_height_range_popularity_id_index
@@ -109,5 +108,3 @@ ADD COLUMN door_width_range int GENERATED ALWAYS AS (CASE WHEN door_width < 80 T
 
 create index estate_door_width_range_popularity_id_index
     on isuumo.estate (door_width_range asc, popularity desc, id asc);
-=======
->>>>>>> 49d7ecd75ffaa75f0c320bbdd0ae8a016617e27d
