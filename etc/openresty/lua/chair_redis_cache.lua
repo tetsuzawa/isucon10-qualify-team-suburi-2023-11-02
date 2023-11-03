@@ -1,35 +1,43 @@
+local ngx_re = require "ngx.re"
 local redis = require "resty.redis"
-local red = redis:new()
 
-local function error_handler(err)
-    ngx.log(ngx.ERR, "nginx lua でエラー発生: ", err)
-    -- 必要に応じて、HTTPレスポンスをカスタマイズする
-    ngx.status = ngx.HTTP_INTERNAL_SERVER_ERROR
-    ngx.say("nginx lua で サーバーエラーが発生しました。")
-    ngx.exit(ngx.status)
-end
+-- この例ではリクエストURIから数字を抽出します
+local uri = ngx.var.uri
 
+local match, err = ngx_re.match(uri, "/api/chair/([0-9]+)", "jo")
 
-red:set_timeout(1000)  -- 1秒のタイムアウト
-
-local ok, err = xpcall(red:connect("127.0.0.1", 6379), error_handler)
-if not ok then
-    ngx.say("Failed to connect to Redis: ", err)
-    return
-end
-
-local res, err = red:sismember("sold_out_chair")
-if not res then
-    return
-else
-    ngx.log(ngx.INFO,"nginx lua で redisから売り切れの椅子を取得しました: " .. res)
-    ngx.status = HTTP_NOT_FOUND
+if not match then
+    if err then
+        ngx.log(ngx.ERR, "nginx lua 正規表現マッチングエラー: ", err)
+    end
     ngx.exit(ngx.HTTP_NOT_FOUND)
 end
 
--- 接続をプーリングに設定する
-local ok, err = xpcall(red:set_keepalive(10000, 100), error_handler) -- 10秒のアイドルタイムアウト、100個の接続をプール
+-- マッチした場合、マッチした値を取得します
+local chair_id = match[1]
+
+local red = redis:new()
+red:set_timeout(1000)  -- 1秒のタイムアウト
+
+local ok, err = red:connect("127.0.0.1", 6379)
 if not ok then
-    ngx.say("Failed to set keepalive: ", err)
+    ngx.log(ngx.ERR, "Failed to connect to Redis: ", err)
     return
 end
+
+local res, err = red:sismember("sold_out_chair", chair_id)
+if err then
+    ngx.log(ngx.ERR, "Failed to check Redis: ", err)
+    return
+end
+
+if res == 1 then
+    ngx.log(ngx.INFO, "nginx lua で redisから売り切れの椅子を確認しました: " .. chair_id)
+    red:set_keepalive(10000, 100) -- 接続をプールに戻す
+    ngx.exit(ngx.HTTP_NOT_FOUND)
+else
+    -- アイテムが売り切れていない場合の処理をここに書く
+end
+
+-- 接続をプーリングに設定する
+local ok, err = red:set_keepalive(10000, 100) -- 10秒のアイドルタイムアウト、
