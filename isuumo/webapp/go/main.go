@@ -307,6 +307,7 @@ func main() {
 	if err = rdb.Ping(context.Background()).Err(); err != nil {
 		e.Logger.Fatalf("Redis connection failed : %v", err)
 	}
+	defer rdb.Close()
 
 	// Start server
 	serverPort := fmt.Sprintf(":%v", getEnv("SERVER_PORT", "1323"))
