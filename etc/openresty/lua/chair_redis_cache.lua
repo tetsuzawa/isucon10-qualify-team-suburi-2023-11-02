@@ -13,10 +13,10 @@ local match, err = ngx.re.match(uri, "/api/chair/([0-9]+)", "jo")
 --    ngx.exit(ngx.HTTP_NOT_FOUND)
 --end
 
-local chair_id = string.match(uri, "/api/chair/(%d+)")
+--local chair_id = string.match(uri, "/api/chair/(%d+)")
 
 -- マッチした場合、マッチした値を取得します
---local chair_id = match[1]
+local chair_id = match[1]
 
 local red = redis:new()
 red:set_timeout(1000)  -- 1秒のタイムアウト
