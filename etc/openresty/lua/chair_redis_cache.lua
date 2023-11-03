@@ -1,21 +1,23 @@
 require "resty.core"
-local ngx_re = require "ngx.re"
+--local ngx_re = require "ngx.re"
 local redis = require "resty.redis"
 
 -- この例ではリクエストURIから数字を抽出します
 local uri = ngx.var.uri
 
-local match, err = ngx_re.match(uri, "/api/chair/([0-9]+)", "jo")
+--local match, err = ngx_re.match(uri, "/api/chair/([0-9]+)", "jo")
+--
+--if not match then
+--    if err then
+--        ngx.log(ngx.ERR, "nginx lua 正規表現マッチングエラー: ", err)
+--    end
+--    ngx.exit(ngx.HTTP_NOT_FOUND)
+--end
 
-if not match then
-    if err then
-        ngx.log(ngx.ERR, "nginx lua 正規表現マッチングエラー: ", err)
-    end
-    ngx.exit(ngx.HTTP_NOT_FOUND)
-end
+local chair_id = string.match(uri, "/api/chair/(%d+)")
 
 -- マッチした場合、マッチした値を取得します
-local chair_id = match[1]
+--local chair_id = match[1]
 
 local red = redis:new()
 red:set_timeout(1000)  -- 1秒のタイムアウト
