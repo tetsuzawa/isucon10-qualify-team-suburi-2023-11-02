@@ -25,6 +25,8 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 )
 
+//go:generate go run github.com/mackee/go-sqlla/v2/cmd/sqlla
+
 const (
 	Limit        = 20
 	NazotteLimit = 50
@@ -41,6 +43,7 @@ type InitializeResponse struct {
 	Language string `json:"language"`
 }
 
+//sqlla:table chair
 type Chair struct {
 	ID            int64  `db:"id" json:"id"`
 	Name          string `db:"name" json:"name"`
@@ -72,6 +75,8 @@ type ChairListResponse struct {
 }
 
 // Estate 物件
+//
+//sqlla:table estate
 type Estate struct {
 	ID          int64   `db:"id" json:"id"`
 	Thumbnail   string  `db:"thumbnail" json:"thumbnail"`
@@ -388,12 +393,7 @@ func postChair(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		c.Logger().Errorf("failed to begin tx: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	defer tx.Rollback()
+	bi := NewChairSQL().BulkInsert()
 	for _, row := range records {
 		rm := RecordMapper{Record: row}
 		id := rm.NextInt()
@@ -413,14 +413,25 @@ func postChair(c echo.Context) error {
 			c.Logger().Errorf("failed to read record: %v", err)
 			return c.NoContent(http.StatusBadRequest)
 		}
-		_, err := tx.ExecContext(ctx, "INSERT INTO chair(id, name, description, thumbnail, price, height, width, depth, color, features, kind, popularity, stock) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)", id, name, description, thumbnail, price, height, width, depth, color, features, kind, popularity, stock)
-		if err != nil {
-			c.Logger().Errorf("failed to insert chair: %v", err)
-			return c.NoContent(http.StatusInternalServerError)
-		}
+		bi.Append(
+			NewChairSQL().Insert().
+				ValueID(int64(id)).
+				ValueName(name).
+				ValueDescription(description).
+				ValueThumbnail(thumbnail).
+				ValuePrice(int64(price)).
+				ValueHeight(int64(height)).
+				ValueWidth(int64(width)).
+				ValueDepth(int64(depth)).
+				ValueColor(color).
+				ValueFeatures(features).
+				ValueKind(kind).
+				ValuePopularity(int64(popularity)).
+				ValueStock(int64(stock)),
+		)
 	}
-	if err := tx.Commit(); err != nil {
-		c.Logger().Errorf("failed to commit tx: %v", err)
+	if _, err := bi.ExecContext(ctx, db); err != nil {
+		c.Logger().Errorf("failed to insert chair: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	return c.NoContent(http.StatusCreated)
@@ -642,12 +653,7 @@ func postEstate(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	tx, err := db.BeginTxx(ctx, nil)
-	if err != nil {
-		c.Logger().Errorf("failed to begin tx: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	defer tx.Rollback()
+	bi := NewEstateSQL().BulkInsert()
 	for _, row := range records {
 		rm := RecordMapper{Record: row}
 		id := rm.NextInt()
@@ -666,16 +672,27 @@ func postEstate(c echo.Context) error {
 			c.Logger().Errorf("failed to read record: %v", err)
 			return c.NoContent(http.StatusBadRequest)
 		}
-		_, err := tx.ExecContext(ctx, "INSERT INTO estate(id, name, description, thumbnail, address, latitude, longitude, rent, door_height, door_width, features, popularity) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)", id, name, description, thumbnail, address, latitude, longitude, rent, doorHeight, doorWidth, features, popularity)
-		if err != nil {
-			c.Logger().Errorf("failed to insert estate: %v", err)
-			return c.NoContent(http.StatusInternalServerError)
-		}
+		bi.Append(
+			NewEstateSQL().Insert().
+				ValueID(int64(id)).
+				ValueThumbnail(thumbnail).
+				ValueName(name).
+				ValueDescription(description).
+				ValueLatitude(latitude).
+				ValueLongitude(longitude).
+				ValueAddress(address).
+				ValueRent(int64(rent)).
+				ValueDoorHeight(int64(doorHeight)).
+				ValueDoorWidth(int64(doorWidth)).
+				ValueFeatures(features).
+				ValuePopularity(int64(popularity)),
+		)
 	}
-	if err := tx.Commit(); err != nil {
-		c.Logger().Errorf("failed to commit tx: %v", err)
+	if _, err := bi.ExecContext(ctx, db); err != nil {
+		c.Logger().Errorf("failed to insert estate: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
+
 	return c.NoContent(http.StatusCreated)
 }
 
@@ -766,7 +783,6 @@ func searchEstates(c echo.Context) error {
 
 	ctx := c.Request().Context()
 	var res EstateSearchResponse
-	fmt.Println(countQuery + searchCondition)
 	err = db.GetContext(ctx, &res.Count, countQuery+searchCondition, params...)
 	if err != nil {
 		c.Logger().Errorf("searchEstates DB execution error : %v", err)

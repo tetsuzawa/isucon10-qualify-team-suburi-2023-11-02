@@ -4,10 +4,11 @@ go 1.14
 
 require (
 	github.com/XSAM/otelsql v0.26.0
-	github.com/go-sql-driver/mysql v1.5.0
+	github.com/go-sql-driver/mysql v1.6.0
 	github.com/jmoiron/sqlx v1.2.0
 	github.com/labstack/echo/v4 v4.11.2
 	github.com/labstack/gommon v0.4.0
+	github.com/mackee/go-sqlla/v2 v2.12.0 // indirect
 	github.com/mackee/pgx-replaced v0.0.0-20230218024503-3dae8b2f6855
 	github.com/paulmach/orb v0.10.0
 	github.com/redis/go-redis/v9 v9.3.0
