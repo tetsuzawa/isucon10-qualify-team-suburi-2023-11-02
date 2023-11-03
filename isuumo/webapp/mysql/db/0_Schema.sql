@@ -1,8 +1,11 @@
-DROP DATABASE IF EXISTS isuumo;
-CREATE DATABASE isuumo;
+-- DROP DATABASE IF EXISTS isuumo;
+-- CREATE DATABASE isuumo;
 
-DROP TABLE IF EXISTS isuumo.estate;
-DROP TABLE IF EXISTS isuumo.chair;
+-- DROP TABLE IF EXISTS isuumo.estate;
+-- DROP TABLE IF EXISTS isuumo.chair;
+
+truncate table estate;
+truncate table chair;
 
 CREATE TABLE isuumo.estate
 (
