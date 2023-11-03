@@ -28,11 +28,13 @@ EOF
 . ./env.sh
 
 # ====== go ======
-cd /home/isucon/webapp/golang
-make all
+(
+	cd /home/isucon/isuumo/webapp/go
+	make all
+)
 mkdir -p /home/isucon/log/app
 #sudo logrotate -f /home/isucon/etc/logrotate.d/app
-sudo systemctl restart isucon.go.service
+sudo systemctl restart isuumo.go.service
 
 now=`date +'%Y%m%d%H%M%S'`
 
@@ -45,20 +47,20 @@ sudo ls -1 ${nginx_access_log}.* | sort -r | uniq | sed -n '6,$p' | xargs rm -f
 sudo cp ${nginx_error_log} ${nginx_error_log}.$now
 sudo truncate -s 0 ${nginx_error_log}
 sudo ls -1 ${nginx_error_log}.* | sort -r | uniq | sed -n '6,$p' | xargs rm -f
-sudo nginx -c ./etc/openresty/nginx.conf -t
+sudo nginx -t
 sudo systemctl restart nginx
 
 # ====== openresty =====
-mkdir -p /home/isucon/log/nginx
-sudo touch ${nginx_access_log} ${nginx_error_log}
-sudo cp ${nginx_access_log} ${nginx_access_log}.$now
-sudo truncate -s 0 ${nginx_access_log}
-sudo ls -1 ${nginx_access_log}.* | sort -r | uniq | sed -n '6,$p' | xargs rm -f
-sudo cp ${nginx_error_log} ${nginx_error_log}.$now
-sudo truncate -s 0 ${nginx_error_log}
-sudo ls -1 ${nginx_error_log}.* | sort -r | uniq | sed -n '6,$p' | xargs rm -f
-sudo openresty -c ./etc/openresty/nginx.conf -t
-sudo systemctl restart openresty
+#mkdir -p /home/isucon/log/nginx
+#sudo touch ${nginx_access_log} ${nginx_error_log}
+#sudo cp ${nginx_access_log} ${nginx_access_log}.$now
+#sudo truncate -s 0 ${nginx_access_log}
+#sudo ls -1 ${nginx_access_log}.* | sort -r | uniq | sed -n '6,$p' | xargs rm -f
+#sudo cp ${nginx_error_log} ${nginx_error_log}.$now
+#sudo truncate -s 0 ${nginx_error_log}
+#sudo ls -1 ${nginx_error_log}.* | sort -r | uniq | sed -n '6,$p' | xargs rm -f
+#sudo openresty -c ./etc/openresty/nginx.conf -t
+#sudo systemctl restart openresty
 
 # ====== mysql ======
 # sudo touch ${mysql_slow_log} ${mysql_error_log}

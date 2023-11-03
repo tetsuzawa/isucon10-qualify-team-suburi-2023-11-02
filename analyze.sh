@@ -18,8 +18,9 @@ result_dir=$HOME/result
 mkdir -p ${result_dir}
 
 # journal log
-sudo journalctl -xe -ocat -u isucon.go.serice --since="${prepared_time}" > "${app_journal_log}"
-sudo journalctl -xe -ocat -u openresty.service --since="${prepared_time}" > "${nginx_journal_log}"
+sudo journalctl -xe -ocat -u isuumo.go.serice --since="${prepared_time}" > "${app_journal_log}"
+sudo journalctl -xe -ocat -u nginx.service --since="${prepared_time}" > "${nginx_journal_log}"
+#sudo journalctl -xe -ocat -u openresty.service --since="${prepared_time}" > "${nginx_journal_log}"
 
 # alp
 # ALPM="/int/\d+,/uuid/[A-Za-z0-9_]+,/6digits/[a-z0-9]{6}"
@@ -39,18 +40,18 @@ alp json --file=${nginx_access_log} \
   --matching-groups ${ALPM}  \
   > ${result_dir}/alp.md
 
-OUTFORMT=count,uri_method_status,min,max,sum,avg,p95,trace_id_sample
-touch ${result_dir}/alp_trace.txt
-cp ${result_dir}/alp_trace.txt ${result_dir}/alp_trace.txt.prev
-alp-trace json --file=${nginx_access_log} \
-  --nosave-pos \
-  --sort sum \
-  --reverse \
-  --output ${OUTFORMT} \
-  --format pretty \
-  --matching-groups ${ALPM}  \
-  --trace \
-  > ${result_dir}/alp_trace.txt
+#OUTFORMT=count,uri_method_status,min,max,sum,avg,p95,trace_id_sample
+#touch ${result_dir}/alp_trace.txt
+#cp ${result_dir}/alp_trace.txt ${result_dir}/alp_trace.txt.prev
+#alp-trace json --file=${nginx_access_log} \
+#  --nosave-pos \
+#  --sort sum \
+#  --reverse \
+#  --output ${OUTFORMT} \
+#  --format pretty \
+#  --matching-groups ${ALPM}  \
+#  --trace \
+#  > ${result_dir}/alp_trace.txt
 
 
 # mysqlowquery
