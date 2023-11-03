@@ -904,7 +904,7 @@ func searchEstateNazotte(c echo.Context) error {
 	estatesInPolygon := []Estate{}
 	ring := coordinates.ring()
 	for _, estate := range estatesInBoundingBox {
-		if planar.RingContains(ring, orb.Point{estate.Latitude, estate.Longitude}) {
+		if !planar.RingContains(ring, orb.Point{estate.Latitude, estate.Longitude}) {
 			continue
 		} else {
 			estatesInPolygon = append(estatesInPolygon, estate)
