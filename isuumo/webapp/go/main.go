@@ -307,6 +307,7 @@ func main() {
 	if err = rdb.Ping(context.Background()).Err(); err != nil {
 		e.Logger.Fatalf("Redis connection failed : %v", err)
 	}
+	defer rdb.Close()
 
 	// Start server
 	serverPort := fmt.Sprintf(":%v", getEnv("SERVER_PORT", "1323"))
@@ -336,6 +337,12 @@ func initialize(c echo.Context) error {
 			c.Logger().Errorf("Initialize script error : %v", err)
 			return c.NoContent(http.StatusInternalServerError)
 		}
+	}
+
+	// 在庫0の修正
+	if err := rdb.FlushAll(c.Request().Context()).Err(); err != nil {
+		fmt.Printf("%v\n", err)
+		os.Exit(1)
 	}
 
 	return c.JSON(http.StatusOK, InitializeResponse{
