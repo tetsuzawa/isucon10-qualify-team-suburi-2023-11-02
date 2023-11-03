@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/redis/go-redis/v9"
+
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v4"
@@ -23,6 +25,8 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 )
 
+//go:generate go run github.com/mackee/go-sqlla/v2/cmd/sqlla
+
 const (
 	Limit        = 20
 	NazotteLimit = 50
@@ -30,6 +34,7 @@ const (
 
 var (
 	db                    *sqlx.DB
+	rdb                   *redis.Client
 	chairSearchCondition  ChairSearchCondition
 	estateSearchCondition EstateSearchCondition
 )
@@ -38,20 +43,26 @@ type InitializeResponse struct {
 	Language string `json:"language"`
 }
 
+//sqlla:table chair
 type Chair struct {
-	ID          int64  `db:"id" json:"id"`
-	Name        string `db:"name" json:"name"`
-	Description string `db:"description" json:"description"`
-	Thumbnail   string `db:"thumbnail" json:"thumbnail"`
-	Price       int64  `db:"price" json:"price"`
-	Height      int64  `db:"height" json:"height"`
-	Width       int64  `db:"width" json:"width"`
-	Depth       int64  `db:"depth" json:"depth"`
-	Color       string `db:"color" json:"color"`
-	Features    string `db:"features" json:"features"`
-	Kind        string `db:"kind" json:"kind"`
-	Popularity  int64  `db:"popularity" json:"-"`
-	Stock       int64  `db:"stock" json:"-"`
+	ID            int64  `db:"id" json:"id"`
+	Name          string `db:"name" json:"name"`
+	Description   string `db:"description" json:"description"`
+	Thumbnail     string `db:"thumbnail" json:"thumbnail"`
+	Price         int64  `db:"price" json:"price"`
+	Height        int64  `db:"height" json:"height"`
+	Width         int64  `db:"width" json:"width"`
+	Depth         int64  `db:"depth" json:"depth"`
+	Color         string `db:"color" json:"color"`
+	Features      string `db:"features" json:"features"`
+	Kind          string `db:"kind" json:"kind"`
+	Popularity    int64  `db:"popularity" json:"-"`
+	Stock         int64  `db:"stock" json:"-"`
+	FeaturesArray string `db:"features_array" json:"-"`
+	PriceRange    int64  `db:"price_range" json:"-"`
+	HeightRange   int64  `db:"height_range" json:"-"`
+	WidthRange    int64  `db:"width_range" json:"-"`
+	DepthRange    int64  `db:"depth_range" json:"-"`
 }
 
 type ChairSearchResponse struct {
@@ -64,19 +75,25 @@ type ChairListResponse struct {
 }
 
 // Estate 物件
+//
+//sqlla:table estate
 type Estate struct {
-	ID          int64   `db:"id" json:"id"`
-	Thumbnail   string  `db:"thumbnail" json:"thumbnail"`
-	Name        string  `db:"name" json:"name"`
-	Description string  `db:"description" json:"description"`
-	Latitude    float64 `db:"latitude" json:"latitude"`
-	Longitude   float64 `db:"longitude" json:"longitude"`
-	Address     string  `db:"address" json:"address"`
-	Rent        int64   `db:"rent" json:"rent"`
-	DoorHeight  int64   `db:"door_height" json:"doorHeight"`
-	DoorWidth   int64   `db:"door_width" json:"doorWidth"`
-	Features    string  `db:"features" json:"features"`
-	Popularity  int64   `db:"popularity" json:"-"`
+	ID              int64   `db:"id" json:"id"`
+	Thumbnail       string  `db:"thumbnail" json:"thumbnail"`
+	Name            string  `db:"name" json:"name"`
+	Description     string  `db:"description" json:"description"`
+	Latitude        float64 `db:"latitude" json:"latitude"`
+	Longitude       float64 `db:"longitude" json:"longitude"`
+	Address         string  `db:"address" json:"address"`
+	Rent            int64   `db:"rent" json:"rent"`
+	DoorHeight      int64   `db:"door_height" json:"doorHeight"`
+	DoorWidth       int64   `db:"door_width" json:"doorWidth"`
+	Features        string  `db:"features" json:"features"`
+	Popularity      int64   `db:"popularity" json:"-"`
+	FeaturesArray   string  `db:"features_array" json:"-"`
+	RentRange       int64   `db:"rent_range" json:"-"`
+	DoorHeightRange int64   `db:"door_height_range" json:"-"`
+	DoorWidthRange  int64   `db:"door_width_range" json:"-"`
 }
 
 // EstateSearchResponse estate/searchへのレスポンスの形式
@@ -293,6 +310,14 @@ func main() {
 
 	profiler := startPyroscope()
 	defer profiler.Stop()
+	rdb = redis.NewClient(&redis.Options{
+		Addr:     GetEnv("REDIS_HOSTNAME", "127.0.0.1") + ":6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	})
+	if err = rdb.Ping(context.Background()).Err(); err != nil {
+		e.Logger.Fatalf("Redis connection failed : %v", err)
+	}
 
 	// Start server
 	serverPort := fmt.Sprintf(":%v", getEnv("SERVER_PORT", "1323"))
@@ -322,6 +347,12 @@ func initialize(c echo.Context) error {
 			c.Logger().Errorf("Initialize script error : %v", err)
 			return c.NoContent(http.StatusInternalServerError)
 		}
+	}
+
+	// 在庫0の修正
+	if err := rdb.FlushAll(c.Request().Context()).Err(); err != nil {
+		fmt.Printf("%v\n", err)
+		os.Exit(1)
 	}
 
 	return c.JSON(http.StatusOK, InitializeResponse{
@@ -374,12 +405,7 @@ func postChair(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		c.Logger().Errorf("failed to begin tx: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	defer tx.Rollback()
+	bi := NewChairSQL().BulkInsert()
 	for _, row := range records {
 		rm := RecordMapper{Record: row}
 		id := rm.NextInt()
@@ -399,14 +425,25 @@ func postChair(c echo.Context) error {
 			c.Logger().Errorf("failed to read record: %v", err)
 			return c.NoContent(http.StatusBadRequest)
 		}
-		_, err := tx.ExecContext(ctx, "INSERT INTO chair(id, name, description, thumbnail, price, height, width, depth, color, features, kind, popularity, stock) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)", id, name, description, thumbnail, price, height, width, depth, color, features, kind, popularity, stock)
-		if err != nil {
-			c.Logger().Errorf("failed to insert chair: %v", err)
-			return c.NoContent(http.StatusInternalServerError)
-		}
+		bi.Append(
+			NewChairSQL().Insert().
+				ValueID(int64(id)).
+				ValueName(name).
+				ValueDescription(description).
+				ValueThumbnail(thumbnail).
+				ValuePrice(int64(price)).
+				ValueHeight(int64(height)).
+				ValueWidth(int64(width)).
+				ValueDepth(int64(depth)).
+				ValueColor(color).
+				ValueFeatures(features).
+				ValueKind(kind).
+				ValuePopularity(int64(popularity)).
+				ValueStock(int64(stock)),
+		)
 	}
-	if err := tx.Commit(); err != nil {
-		c.Logger().Errorf("failed to commit tx: %v", err)
+	if _, err := bi.ExecContext(ctx, db); err != nil {
+		c.Logger().Errorf("failed to insert chair: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 	return c.NoContent(http.StatusCreated)
@@ -417,71 +454,23 @@ func searchChairs(c echo.Context) error {
 	params := make([]interface{}, 0)
 
 	if c.QueryParam("priceRangeId") != "" {
-		chairPrice, err := getRange(chairSearchCondition.Price, c.QueryParam("priceRangeId"))
-		if err != nil {
-			c.Echo().Logger.Infof("priceRangeID invalid, %v : %v", c.QueryParam("priceRangeId"), err)
-			return c.NoContent(http.StatusBadRequest)
-		}
-
-		if chairPrice.Min != -1 {
-			conditions = append(conditions, "price >= ?")
-			params = append(params, chairPrice.Min)
-		}
-		if chairPrice.Max != -1 {
-			conditions = append(conditions, "price < ?")
-			params = append(params, chairPrice.Max)
-		}
+		conditions = append(conditions, "price_range = ?")
+		params = append(params, c.QueryParam("priceRangeId"))
 	}
 
 	if c.QueryParam("heightRangeId") != "" {
-		chairHeight, err := getRange(chairSearchCondition.Height, c.QueryParam("heightRangeId"))
-		if err != nil {
-			c.Echo().Logger.Infof("heightRangeIf invalid, %v : %v", c.QueryParam("heightRangeId"), err)
-			return c.NoContent(http.StatusBadRequest)
-		}
-
-		if chairHeight.Min != -1 {
-			conditions = append(conditions, "height >= ?")
-			params = append(params, chairHeight.Min)
-		}
-		if chairHeight.Max != -1 {
-			conditions = append(conditions, "height < ?")
-			params = append(params, chairHeight.Max)
-		}
+		conditions = append(conditions, "height_range = ?")
+		params = append(params, c.QueryParam("heightRangeId"))
 	}
 
 	if c.QueryParam("widthRangeId") != "" {
-		chairWidth, err := getRange(chairSearchCondition.Width, c.QueryParam("widthRangeId"))
-		if err != nil {
-			c.Echo().Logger.Infof("widthRangeID invalid, %v : %v", c.QueryParam("widthRangeId"), err)
-			return c.NoContent(http.StatusBadRequest)
-		}
-
-		if chairWidth.Min != -1 {
-			conditions = append(conditions, "width >= ?")
-			params = append(params, chairWidth.Min)
-		}
-		if chairWidth.Max != -1 {
-			conditions = append(conditions, "width < ?")
-			params = append(params, chairWidth.Max)
-		}
+		conditions = append(conditions, "width_range = ?")
+		params = append(params, c.QueryParam("widthRangeId"))
 	}
 
 	if c.QueryParam("depthRangeId") != "" {
-		chairDepth, err := getRange(chairSearchCondition.Depth, c.QueryParam("depthRangeId"))
-		if err != nil {
-			c.Echo().Logger.Infof("depthRangeId invalid, %v : %v", c.QueryParam("depthRangeId"), err)
-			return c.NoContent(http.StatusBadRequest)
-		}
-
-		if chairDepth.Min != -1 {
-			conditions = append(conditions, "depth >= ?")
-			params = append(params, chairDepth.Min)
-		}
-		if chairDepth.Max != -1 {
-			conditions = append(conditions, "depth < ?")
-			params = append(params, chairDepth.Max)
-		}
+		conditions = append(conditions, "depth_range = ?")
+		params = append(params, c.QueryParam("depthRangeId"))
 	}
 
 	if c.QueryParam("kind") != "" {
@@ -495,10 +484,16 @@ func searchChairs(c echo.Context) error {
 	}
 
 	if c.QueryParam("features") != "" {
-		for _, f := range strings.Split(c.QueryParam("features"), ",") {
-			c := "%" + f + "%"
-			conditions = append(conditions, "features LIKE ?")
-			params = append(params, c)
+		ss := strings.Split(c.QueryParam("features"), ",")
+		if len(ss) > 0 {
+			for _, s := range ss {
+				params = append(params, s)
+			}
+			conditions = append(
+				conditions,
+				fmt.Sprintf("features_array @> ARRAY[?%s]",
+					strings.Repeat(",?", len(ss)-1)),
+			)
 		}
 	}
 
@@ -550,6 +545,8 @@ func searchChairs(c echo.Context) error {
 	return c.JSON(http.StatusOK, res)
 }
 
+const soldOutChairKey = "sold_out_chair"
+
 func buyChair(c echo.Context) error {
 	m := echo.Map{}
 	if err := c.Bind(&m); err != nil {
@@ -570,34 +567,24 @@ func buyChair(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	tx, err := db.BeginTxx(ctx, nil)
-	if err != nil {
-		c.Echo().Logger.Errorf("failed to create transaction : %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	defer tx.Rollback()
 
-	var chair Chair
-	err = tx.QueryRowxContext(ctx, "SELECT * FROM chair WHERE id = ? AND stock > 0 FOR UPDATE", id).StructScan(&chair)
-	if err != nil {
+	var stock int64
+	row := db.QueryRowContext(ctx, "UPDATE chair SET stock = stock - 1 WHERE id = ? AND stock > 0 RETURNING stock", id)
+	if err := row.Scan(&stock); err != nil {
 		if err == sql.ErrNoRows {
 			c.Echo().Logger.Infof("buyChair chair id \"%v\" not found", id)
 			return c.NoContent(http.StatusNotFound)
 		}
-		c.Echo().Logger.Errorf("DB Execution Error: on getting a chair by id : %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-
-	_, err = tx.ExecContext(ctx, "UPDATE chair SET stock = stock - 1 WHERE id = ?", id)
-	if err != nil {
 		c.Echo().Logger.Errorf("chair stock update failed : %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	err = tx.Commit()
-	if err != nil {
-		c.Echo().Logger.Errorf("transaction commit error : %v", err)
-		return c.NoContent(http.StatusInternalServerError)
+	// 残り1つを購入したことになるので在庫切れリストに追加する
+	if stock == 0 {
+		if err := rdb.SAdd(c.Request().Context(), soldOutChairKey, id).Err(); err != nil {
+			c.Echo().Logger.Errorf("failed to insert sold_out_chair to redis, id: %v", id)
+			return c.NoContent(http.StatusInsufficientStorage)
+		}
 	}
 
 	return c.NoContent(http.StatusOK)
@@ -678,12 +665,7 @@ func postEstate(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		c.Logger().Errorf("failed to begin tx: %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	defer tx.Rollback()
+	bi := NewEstateSQL().BulkInsert()
 	for _, row := range records {
 		rm := RecordMapper{Record: row}
 		id := rm.NextInt()
@@ -702,16 +684,27 @@ func postEstate(c echo.Context) error {
 			c.Logger().Errorf("failed to read record: %v", err)
 			return c.NoContent(http.StatusBadRequest)
 		}
-		_, err := tx.ExecContext(ctx, "INSERT INTO estate(id, name, description, thumbnail, address, latitude, longitude, rent, door_height, door_width, features, popularity) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)", id, name, description, thumbnail, address, latitude, longitude, rent, doorHeight, doorWidth, features, popularity)
-		if err != nil {
-			c.Logger().Errorf("failed to insert estate: %v", err)
-			return c.NoContent(http.StatusInternalServerError)
-		}
+		bi.Append(
+			NewEstateSQL().Insert().
+				ValueID(int64(id)).
+				ValueThumbnail(thumbnail).
+				ValueName(name).
+				ValueDescription(description).
+				ValueLatitude(latitude).
+				ValueLongitude(longitude).
+				ValueAddress(address).
+				ValueRent(int64(rent)).
+				ValueDoorHeight(int64(doorHeight)).
+				ValueDoorWidth(int64(doorWidth)).
+				ValueFeatures(features).
+				ValuePopularity(int64(popularity)),
+		)
 	}
-	if err := tx.Commit(); err != nil {
-		c.Logger().Errorf("failed to commit tx: %v", err)
+	if _, err := bi.ExecContext(ctx, db); err != nil {
+		c.Logger().Errorf("failed to insert estate: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
+
 	return c.NoContent(http.StatusCreated)
 }
 
@@ -720,61 +713,33 @@ func searchEstates(c echo.Context) error {
 	params := make([]interface{}, 0)
 
 	if c.QueryParam("doorHeightRangeId") != "" {
-		doorHeight, err := getRange(estateSearchCondition.DoorHeight, c.QueryParam("doorHeightRangeId"))
-		if err != nil {
-			c.Echo().Logger.Infof("doorHeightRangeID invalid, %v : %v", c.QueryParam("doorHeightRangeId"), err)
-			return c.NoContent(http.StatusBadRequest)
-		}
-
-		if doorHeight.Min != -1 {
-			conditions = append(conditions, "door_height >= ?")
-			params = append(params, doorHeight.Min)
-		}
-		if doorHeight.Max != -1 {
-			conditions = append(conditions, "door_height < ?")
-			params = append(params, doorHeight.Max)
-		}
+		conditions = append(conditions, "door_height_range = ?")
+		params = append(params, c.QueryParam("doorHeightRangeId"))
 	}
 
+	c.Echo().Logger.Debug("request uri: ", c.Request().RequestURI)
+	c.Echo().Logger.Debug("doorWidthRangeId: ", c.QueryParam("doorWidthRangeId"))
 	if c.QueryParam("doorWidthRangeId") != "" {
-		doorWidth, err := getRange(estateSearchCondition.DoorWidth, c.QueryParam("doorWidthRangeId"))
-		if err != nil {
-			c.Echo().Logger.Infof("doorWidthRangeID invalid, %v : %v", c.QueryParam("doorWidthRangeId"), err)
-			return c.NoContent(http.StatusBadRequest)
-		}
-
-		if doorWidth.Min != -1 {
-			conditions = append(conditions, "door_width >= ?")
-			params = append(params, doorWidth.Min)
-		}
-		if doorWidth.Max != -1 {
-			conditions = append(conditions, "door_width < ?")
-			params = append(params, doorWidth.Max)
-		}
+		conditions = append(conditions, "door_width_range = ?")
+		params = append(params, c.QueryParam("doorWidthRangeId"))
 	}
 
 	if c.QueryParam("rentRangeId") != "" {
-		estateRent, err := getRange(estateSearchCondition.Rent, c.QueryParam("rentRangeId"))
-		if err != nil {
-			c.Echo().Logger.Infof("rentRangeID invalid, %v : %v", c.QueryParam("rentRangeId"), err)
-			return c.NoContent(http.StatusBadRequest)
-		}
-
-		if estateRent.Min != -1 {
-			conditions = append(conditions, "rent >= ?")
-			params = append(params, estateRent.Min)
-		}
-		if estateRent.Max != -1 {
-			conditions = append(conditions, "rent < ?")
-			params = append(params, estateRent.Max)
-		}
+		conditions = append(conditions, "rent_range = ?")
+		params = append(params, c.QueryParam("rentRangeId"))
 	}
 
 	if c.QueryParam("features") != "" {
-		for _, f := range strings.Split(c.QueryParam("features"), ",") {
-			c := "%" + f + "%"
-			conditions = append(conditions, "features like ?")
-			params = append(params, c)
+		ss := strings.Split(c.QueryParam("features"), ",")
+		if len(ss) > 0 {
+			for _, s := range ss {
+				params = append(params, s)
+			}
+			conditions = append(
+				conditions,
+				fmt.Sprintf("features_array @> ARRAY[?%s]",
+					strings.Repeat(",?", len(ss)-1)),
+			)
 		}
 	}
 
@@ -802,7 +767,6 @@ func searchEstates(c echo.Context) error {
 
 	ctx := c.Request().Context()
 	var res EstateSearchResponse
-	fmt.Println(countQuery + searchCondition)
 	err = db.GetContext(ctx, &res.Count, countQuery+searchCondition, params...)
 	if err != nil {
 		c.Logger().Errorf("searchEstates DB execution error : %v", err)
