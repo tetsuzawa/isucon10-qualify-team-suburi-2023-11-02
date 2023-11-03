@@ -777,7 +777,6 @@ func searchEstates(c echo.Context) error {
 
 	ctx := c.Request().Context()
 	var res EstateSearchResponse
-	fmt.Println(countQuery + searchCondition)
 	err = db.GetContext(ctx, &res.Count, countQuery+searchCondition, params...)
 	if err != nil {
 		c.Logger().Errorf("searchEstates DB execution error : %v", err)
