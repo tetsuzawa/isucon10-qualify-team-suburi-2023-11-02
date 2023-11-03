@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -833,11 +834,13 @@ func searchRecommendedEstateWithChair(c echo.Context) error {
 	}
 
 	var estates []Estate
-	w := chair.Width
-	h := chair.Height
-	d := chair.Depth
-	query = `SELECT * FROM estate WHERE (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) ORDER BY popularity DESC, id ASC LIMIT ?`
-	err = estateDB.SelectContext(ctx, &estates, query, w, h, w, d, h, w, h, d, d, w, d, h, Limit)
+	sorted := []int64{chair.Width, chair.Depth, chair.Height}
+	slices.Sort(sorted)
+	l1, l2 := sorted[0], sorted[1]
+	query = `SELECT * from (select * from estate where door_width >= ? AND door_height >= ? ORDER BY popularity DESC ,id limit ?) as t
+union
+SELECT * from  (select * from estate where door_width >= ? AND door_height >= ? ORDER BY popularity DESC ,id limit ?) as t2 ORDER BY popularity DESC ,id limit ?;`
+	err = estateDB.SelectContext(ctx, &estates, query, l1, l2, Limit, l2, l1, Limit, Limit)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return c.JSON(http.StatusOK, EstateListResponse{[]Estate{}})

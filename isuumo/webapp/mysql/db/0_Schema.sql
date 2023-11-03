@@ -58,6 +58,8 @@ create index chair_popularity_id_index
 create index chair_stock_price_id_index
     on isuumo.chair (stock, price, id);
 
+create index estate_door_recommend_index
+    on isuumo.estate (door_height, door_width, popularity desc, id asc);
 
 -- chair
 ALTER TABLE isuumo.chair ADD COLUMN features_array text[] GENERATED ALWAYS AS (regexp_split_to_array(features, ',')) STORED;
@@ -111,3 +113,4 @@ ADD COLUMN door_width_range int GENERATED ALWAYS AS (CASE WHEN door_width < 80 T
 
 create index estate_door_width_range_popularity_id_index
     on isuumo.estate (door_width_range asc, popularity desc, id asc);
+
