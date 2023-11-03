@@ -308,7 +308,6 @@ func initialize(c echo.Context) error {
 		cmdStr := fmt.Sprintf("psql -h %v -U %v -d %v -f %v",
 			pgConnectionData.Host,
 			pgConnectionData.User,
-			pgConnectionData.Port,
 			pgConnectionData.DBName,
 			sqlFile,
 		)
