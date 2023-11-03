@@ -6,6 +6,7 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"github.com/redis/go-redis/v9"
 	"net/http"
 	"os"
 	"os/exec"
@@ -30,6 +31,7 @@ const (
 
 var (
 	db                    *sqlx.DB
+	rdb                   *redis.Client
 	chairSearchCondition  ChairSearchCondition
 	estateSearchCondition EstateSearchCondition
 )
@@ -293,6 +295,15 @@ func main() {
 	db.SetMaxOpenConns(10)
 	defer db.Close()
 
+	rdb = redis.NewClient(&redis.Options{
+		Addr:     GetEnv("REDIS_HOSTNAME", "127.0.0.1") + ":6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	})
+	if err = rdb.Ping(context.Background()).Err(); err != nil {
+		e.Logger.Fatalf("Redis connection failed : %v", err)
+	}
+
 	// Start server
 	serverPort := fmt.Sprintf(":%v", getEnv("SERVER_PORT", "1323"))
 	e.Logger.Fatal(e.Start(serverPort))
@@ -555,6 +566,8 @@ func searchChairs(c echo.Context) error {
 	return c.JSON(http.StatusOK, res)
 }
 
+const soldOutChairKey = "sold_out_chair"
+
 func buyChair(c echo.Context) error {
 	m := echo.Map{}
 	if err := c.Bind(&m); err != nil {
@@ -599,6 +612,13 @@ func buyChair(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
+	// 残り1つを購入したことになるので在庫切れリストに追加する
+	if (chair.Stock - 1) == 0 {
+		if err := rdb.SAdd(c.Request().Context(), soldOutChairKey, id).Err(); err != nil {
+			c.Echo().Logger.Errorf("failed to insert sold_out_chair to redis, id: %v", id)
+			return c.NoContent(http.StatusInsufficientStorage)
+		}
+	}
 	err = tx.Commit()
 	if err != nil {
 		c.Echo().Logger.Errorf("transaction commit error : %v", err)
