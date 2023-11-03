@@ -493,10 +493,16 @@ func searchChairs(c echo.Context) error {
 	}
 
 	if c.QueryParam("features") != "" {
-		for _, f := range strings.Split(c.QueryParam("features"), ",") {
-			c := "%" + f + "%"
-			conditions = append(conditions, "features LIKE ?")
-			params = append(params, c)
+		ss := strings.Split(c.QueryParam("features"), ",")
+		if len(ss) > 0 {
+			for _, s := range ss {
+				params = append(params, s)
+			}
+			conditions = append(
+				conditions,
+				fmt.Sprintf("features_array @> ARRAY[?%s]",
+					strings.Repeat(",?", len(ss)-1)),
+			)
 		}
 	}
 
