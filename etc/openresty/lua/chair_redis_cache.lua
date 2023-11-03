@@ -1,11 +1,10 @@
 require "resty.core"
---local ngx_re = require "ngx.re"
 local redis = require "resty.redis"
 
 -- この例ではリクエストURIから数字を抽出します
 local uri = ngx.var.uri
 
---local match, err = ngx_re.match(uri, "/api/chair/([0-9]+)", "jo")
+local match, err = ngx.re.match(uri, "/api/chair/([0-9]+)", "jo")
 --
 --if not match then
 --    if err then
