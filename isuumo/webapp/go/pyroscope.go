@@ -13,7 +13,7 @@ func startPyroscope() *pyroscope.Profiler {
 	runtime.SetBlockProfileRate(blockProfileRate) // ・・・(2)
 	p, err := pyroscope.Start(pyroscope.Config{
 		ApplicationName: "isuumo",
-		ServerAddress:   GetEnv("PYROSCOPE_SERVER", "monitoring:4040"),
+		ServerAddress:   GetEnv("PYROSCOPE_SERVER", "http://monitoring:4040"),
 		Logger:          pyroscope.StandardLogger,
 
 		// タグを設定することで、タグ指定でのプロファイル表示や、タグ間のプロファイル比較ができ便利です
