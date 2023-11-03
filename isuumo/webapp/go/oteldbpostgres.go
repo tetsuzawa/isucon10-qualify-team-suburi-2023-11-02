@@ -1,4 +1,4 @@
-package main
+package gotemplates
 
 import (
 	"database/sql"
@@ -24,16 +24,16 @@ func GetEnv(key, val string) string {
 
 func GetDB() (*sqlx.DB, error) {
 	dsn := fmt.Sprintf(
-		"%s:%s@tcp(%s:%v)/%s?charset=utf8mb4&parseTime=true&loc=Local&interpolateParams=true",
-		GetEnv("MYSQL_USER", "isucon"),
-		GetEnv("MYSQL_PASS", "isucon"),
-		GetEnv("MYSQL_HOST", "127.0.0.1"),
-		GetEnv("MYSQL_PORT", "3306"),
-		GetEnv("MYSQL_DBNAME", "isucon"),
+		"postgres://%s:%s@%s:%v/%s?sslmode=disable",
+		GetEnv("DB_USER", "isucon"),
+		GetEnv("DB_PASS", "isucon"),
+		GetEnv("DB_HOSTNAME", "127.0.0.1"),
+		GetEnv("DB_PORT", "5432"),
+		GetEnv("DB_DATABASE", "isuumo"),
 	)
 
 	tmpDB, err := otelsql.Open(
-		"mysql",
+		"pgx-replaced",
 		dsn,
 		otelsql.WithAttributes(
 			semconv.DBSystemPostgreSQL,
@@ -59,7 +59,7 @@ func GetDB() (*sqlx.DB, error) {
 	tmpDB.SetMaxOpenConns(50)
 	tmpDB.SetConnMaxLifetime(5 * time.Minute)
 
-	return sqlx.NewDb(tmpDB, "mysql"), nil
+	return sqlx.NewDb(tmpDB, "pgx"), nil
 }
 
 func WaitDB(db *sql.DB) {
