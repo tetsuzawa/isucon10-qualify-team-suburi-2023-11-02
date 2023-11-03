@@ -345,8 +345,16 @@ func initialize(c echo.Context) error {
 		os.Exit(1)
 	}
 
+	if err := os.Chown("/var/cache/nginx/cache", 1100, 1100); err != nil {
+		fmt.Printf("changing owner /var/cache/nginx/cache ...%v\n", err)
+		os.Exit(1)
+	}
 	if err := os.RemoveAll("/var/cache/nginx/cache"); err != nil {
 		fmt.Printf("removing /var/cache/nginx/cache ...%v\n", err)
+		os.Exit(1)
+	}
+	if err := os.Chown("/var/cache/nginx/tmp", 1100, 1100); err != nil {
+		fmt.Printf("changing owner /var/cache/nginx/tmp ...%v\n", err)
 		os.Exit(1)
 	}
 	if err := os.RemoveAll("/var/cache/nginx/tmp"); err != nil {
