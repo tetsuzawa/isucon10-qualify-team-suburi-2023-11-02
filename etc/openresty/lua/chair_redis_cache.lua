@@ -18,7 +18,7 @@ if not ok then
     return
 end
 
-local res, err = red:get("your_key")
+local res, err = red:sismember("sold_out_chair")
 if not res then
     return
 else
