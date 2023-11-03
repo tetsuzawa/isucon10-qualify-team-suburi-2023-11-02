@@ -41,19 +41,21 @@ type InitializeResponse struct {
 }
 
 type Chair struct {
-	ID          int64  `db:"id" json:"id"`
-	Name        string `db:"name" json:"name"`
-	Description string `db:"description" json:"description"`
-	Thumbnail   string `db:"thumbnail" json:"thumbnail"`
-	Price       int64  `db:"price" json:"price"`
-	Height      int64  `db:"height" json:"height"`
-	Width       int64  `db:"width" json:"width"`
-	Depth       int64  `db:"depth" json:"depth"`
-	Color       string `db:"color" json:"color"`
-	Features    string `db:"features" json:"features"`
-	Kind        string `db:"kind" json:"kind"`
-	Popularity  int64  `db:"popularity" json:"-"`
-	Stock       int64  `db:"stock" json:"-"`
+	ID            int64  `db:"id" json:"id"`
+	Name          string `db:"name" json:"name"`
+	Description   string `db:"description" json:"description"`
+	Thumbnail     string `db:"thumbnail" json:"thumbnail"`
+	Price         int64  `db:"price" json:"price"`
+	PriceRange    int64  `db:"price_range" json:"-"`
+	Height        int64  `db:"height" json:"height"`
+	Width         int64  `db:"width" json:"width"`
+	Depth         int64  `db:"depth" json:"depth"`
+	Color         string `db:"color" json:"color"`
+	Features      string `db:"features" json:"features"`
+	Kind          string `db:"kind" json:"kind"`
+	Popularity    int64  `db:"popularity" json:"-"`
+	Stock         int64  `db:"stock" json:"-"`
+	FeaturesArray string `db:"features_array" json:"-"`
 }
 
 type ChairSearchResponse struct {
@@ -425,20 +427,22 @@ func searchChairs(c echo.Context) error {
 	params := make([]interface{}, 0)
 
 	if c.QueryParam("priceRangeId") != "" {
-		chairPrice, err := getRange(chairSearchCondition.Price, c.QueryParam("priceRangeId"))
-		if err != nil {
-			c.Echo().Logger.Infof("priceRangeID invalid, %v : %v", c.QueryParam("priceRangeId"), err)
-			return c.NoContent(http.StatusBadRequest)
-		}
-
-		if chairPrice.Min != -1 {
-			conditions = append(conditions, "price >= ?")
-			params = append(params, chairPrice.Min)
-		}
-		if chairPrice.Max != -1 {
-			conditions = append(conditions, "price < ?")
-			params = append(params, chairPrice.Max)
-		}
+		//chairPrice, err := getRange(chairSearchCondition.Price, c.QueryParam("priceRangeId"))
+		//if err != nil {
+		//	c.Echo().Logger.Infof("priceRangeID invalid, %v : %v", c.QueryParam("priceRangeId"), err)
+		//	return c.NoContent(http.StatusBadRequest)
+		//}
+		//
+		//if chairPrice.Min != -1 {
+		//	conditions = append(conditions, "price >= ?")
+		//	params = append(params, chairPrice.Min)
+		//}
+		//if chairPrice.Max != -1 {
+		//	conditions = append(conditions, "price < ?")
+		//	params = append(params, chairPrice.Max)
+		//}
+		conditions = append(conditions, "price_range = ?")
+		params = append(params, c.QueryParam("priceRangeId"))
 	}
 
 	if c.QueryParam("heightRangeId") != "" {
@@ -503,10 +507,16 @@ func searchChairs(c echo.Context) error {
 	}
 
 	if c.QueryParam("features") != "" {
-		for _, f := range strings.Split(c.QueryParam("features"), ",") {
-			c := "%" + f + "%"
-			conditions = append(conditions, "features LIKE ?")
-			params = append(params, c)
+		ss := strings.Split(c.QueryParam("features"), ",")
+		if len(ss) > 0 {
+			for _, s := range ss {
+				params = append(params, s)
+			}
+			conditions = append(
+				conditions,
+				fmt.Sprintf("features_array @> ARRAY[?%s]",
+					strings.Repeat(",?", len(ss)-1)),
+			)
 		}
 	}
 
