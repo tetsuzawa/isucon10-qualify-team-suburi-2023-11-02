@@ -349,7 +349,7 @@ func initialize(c echo.Context) error {
 		fmt.Printf("%v\n", err)
 		os.Exit(1)
 	}
-	c.Echo().Logger.Infof(("sold out chiars on init: %v", len(soldOutChairIDs))
+	c.Echo().Logger.Infof("sold out chiars on init: %v", len(soldOutChairIDs))
 	if err := rdb.SAdd(c.Request().Context(), soldOutChairKey, soldOutChairIDs).Err(); err != nil {
 		fmt.Printf("%v\n", err)
 		os.Exit(1)
