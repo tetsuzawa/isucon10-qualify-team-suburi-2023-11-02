@@ -53,6 +53,7 @@ type Chair struct {
 	Popularity    int64  `db:"popularity" json:"-"`
 	Stock         int64  `db:"stock" json:"-"`
 	FeaturesArray string `db:"features_array" json:"-"`
+	priceRange    int64  `db:"price_range" json:"-"`
 }
 
 type ChairSearchResponse struct {
