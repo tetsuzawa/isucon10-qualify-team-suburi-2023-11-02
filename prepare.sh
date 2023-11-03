@@ -37,6 +37,7 @@ mkdir -p /home/isucon/log/app
 sudo systemctl restart isuumo.go.service
 
 now=`date +'%Y%m%d%H%M%S'`
+echo $now > appversion.sh
 
 # ====== nginx ======
 # mkdir -p /home/isucon/log/nginx
