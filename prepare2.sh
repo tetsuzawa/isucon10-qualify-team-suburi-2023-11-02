@@ -51,17 +51,17 @@ now=`date +'%Y%m%d%H%M%S'`
 # sudo systemctl restart nginx
 
 # ====== openresty =====
-#mkdir -p /home/isucon/log/nginx
-#sudo touch ${nginx_access_log} ${nginx_error_log}
-#sudo cp ${nginx_access_log} ${nginx_access_log}.$now
-#sudo truncate -s 0 ${nginx_access_log}
-#sudo ls -1 ${nginx_access_log}.* | sort -r | uniq | sed -n '6,$p' | xargs rm -f
-#sudo cp ${nginx_error_log} ${nginx_error_log}.$now
-#sudo truncate -s 0 ${nginx_error_log}
-#sudo ls -1 ${nginx_error_log}.* | sort -r | uniq | sed -n '6,$p' | xargs rm -f
-#sudo rm -rf /var/cache/nginx/*
-#sudo openresty -c /home/isucon/etc/openresty/nginx.conf -t
-#sudo systemctl restart openresty
+mkdir -p /home/isucon/log/nginx
+sudo touch ${nginx_access_log} ${nginx_error_log}
+sudo cp ${nginx_access_log} ${nginx_access_log}.$now
+sudo truncate -s 0 ${nginx_access_log}
+sudo ls -1 ${nginx_access_log}.* | sort -r | uniq | sed -n '6,$p' | xargs rm -f
+sudo cp ${nginx_error_log} ${nginx_error_log}.$now
+sudo truncate -s 0 ${nginx_error_log}
+sudo ls -1 ${nginx_error_log}.* | sort -r | uniq | sed -n '6,$p' | xargs rm -f
+sudo rm -rf /var/cache/nginx/*
+sudo openresty -c /home/isucon/etc/openresty/nginx.conf -t
+sudo systemctl restart openresty
 
 # ====== mysql ======
 # sudo touch ${mysql_slow_log} ${mysql_error_log}
