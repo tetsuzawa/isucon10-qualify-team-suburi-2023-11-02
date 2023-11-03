@@ -41,11 +41,17 @@ CREATE TABLE isuumo.chair
 create index estate_popularity_id_index
     on isuumo.estate (popularity desc, id asc);
 
+create index estate_rent_popularity_id_index
+    on isuumo.estate (rent, popularity desc, id asc);
+
+create index chair_price_popularity_id_index
+    on isuumo.chair (price, popularity desc, id asc);
+
+create index chair_popularity_id_index
+    on isuumo.chair (popularity desc, id asc);
+
 create index chair_stock_price_id_index
     on isuumo.chair (stock, price, id);
-
-create index estate_rent_id_index
-    on isuumo.estate (rent, id);
 
 ALTER TABLE isuumo.chair ADD COLUMN features_array text[] GENERATED ALWAYS AS (regexp_split_to_array(features, ',')) STORED;
 
@@ -56,3 +62,22 @@ ADD COLUMN price_range int GENERATED ALWAYS AS (CASE WHEN price < 3000 THEN 0 WH
 
 create index chair_price_range_popularity_id_index
     on isuumo.chair (price_range asc, popularity desc, id asc);
+
+-- 80cm未満: 0, 80cm以上110cm未満: 1, 110cm以上150cm未満: 2, 150cm以上: 3
+ALTER TABLE isuumo.chair
+ADD COLUMN height_range int GENERATED ALWAYS AS (CASE WHEN height < 80 THEN 0 WHEN 80 <= height and height < 110 THEN 1 WHEN 110 <= height and height < 150 THEN 2 WHEN 150 <= height THEN 3 END) STORED;
+
+create index chair_height_range_popularity_id_index
+    on isuumo.chair (height_range asc, popularity desc, id asc);
+
+ALTER TABLE isuumo.chair
+ADD COLUMN width_range int GENERATED ALWAYS AS (CASE WHEN width < 80 THEN 0 WHEN 80 <= width and width < 110 THEN 1 WHEN 110 <= width and width < 150 THEN 2 WHEN 150 <= width THEN 3 END) STORED;
+
+create index chair_width_range_popularity_id_index
+    on isuumo.chair (width_range asc, popularity desc, id asc);
+
+ALTER TABLE isuumo.chair
+ADD COLUMN depth_range int GENERATED ALWAYS AS (CASE WHEN depth < 80 THEN 0 WHEN 80 <= depth and depth < 110 THEN 1 WHEN 110 <= depth and depth < 150 THEN 2 WHEN 150 <= depth THEN 3 END) STORED;
+
+create index chair_depth_range_popularity_id_index
+    on isuumo.chair (depth_range asc, popularity desc, id asc);
