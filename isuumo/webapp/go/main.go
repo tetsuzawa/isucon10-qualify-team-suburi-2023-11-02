@@ -271,8 +271,8 @@ func main() {
 
 	// Echo instance
 	e := echo.New()
-	e.Debug = false
-	e.Logger.SetLevel(log.ERROR)
+	e.Debug = true
+	e.Logger.SetLevel(log.DEBUG)
 
 	// Middleware
 	e.Use(middleware.Logger())
