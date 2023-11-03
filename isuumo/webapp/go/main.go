@@ -47,7 +47,6 @@ type Chair struct {
 	Description   string `db:"description" json:"description"`
 	Thumbnail     string `db:"thumbnail" json:"thumbnail"`
 	Price         int64  `db:"price" json:"price"`
-	PriceRange    int64  `db:"price_range" json:"-"`
 	Height        int64  `db:"height" json:"height"`
 	Width         int64  `db:"width" json:"width"`
 	Depth         int64  `db:"depth" json:"depth"`
@@ -57,6 +56,10 @@ type Chair struct {
 	Popularity    int64  `db:"popularity" json:"-"`
 	Stock         int64  `db:"stock" json:"-"`
 	FeaturesArray string `db:"features_array" json:"-"`
+	PriceRange    int64  `db:"price_range" json:"-"`
+	HeightRange   int64  `db:"height_range" json:"-"`
+	WidthRange    int64  `db:"width_range" json:"-"`
+	DepthRange    int64  `db:"depth_range" json:"-"`
 }
 
 type ChairSearchResponse struct {
@@ -429,73 +432,23 @@ func searchChairs(c echo.Context) error {
 	params := make([]interface{}, 0)
 
 	if c.QueryParam("priceRangeId") != "" {
-		//chairPrice, err := getRange(chairSearchCondition.Price, c.QueryParam("priceRangeId"))
-		//if err != nil {
-		//	c.Echo().Logger.Infof("priceRangeID invalid, %v : %v", c.QueryParam("priceRangeId"), err)
-		//	return c.NoContent(http.StatusBadRequest)
-		//}
-		//
-		//if chairPrice.Min != -1 {
-		//	conditions = append(conditions, "price >= ?")
-		//	params = append(params, chairPrice.Min)
-		//}
-		//if chairPrice.Max != -1 {
-		//	conditions = append(conditions, "price < ?")
-		//	params = append(params, chairPrice.Max)
-		//}
 		conditions = append(conditions, "price_range = ?")
 		params = append(params, c.QueryParam("priceRangeId"))
 	}
 
 	if c.QueryParam("heightRangeId") != "" {
-		chairHeight, err := getRange(chairSearchCondition.Height, c.QueryParam("heightRangeId"))
-		if err != nil {
-			c.Echo().Logger.Infof("heightRangeIf invalid, %v : %v", c.QueryParam("heightRangeId"), err)
-			return c.NoContent(http.StatusBadRequest)
-		}
-
-		if chairHeight.Min != -1 {
-			conditions = append(conditions, "height >= ?")
-			params = append(params, chairHeight.Min)
-		}
-		if chairHeight.Max != -1 {
-			conditions = append(conditions, "height < ?")
-			params = append(params, chairHeight.Max)
-		}
+		conditions = append(conditions, "height_range = ?")
+		params = append(params, c.QueryParam("heightRangeId"))
 	}
 
 	if c.QueryParam("widthRangeId") != "" {
-		chairWidth, err := getRange(chairSearchCondition.Width, c.QueryParam("widthRangeId"))
-		if err != nil {
-			c.Echo().Logger.Infof("widthRangeID invalid, %v : %v", c.QueryParam("widthRangeId"), err)
-			return c.NoContent(http.StatusBadRequest)
-		}
-
-		if chairWidth.Min != -1 {
-			conditions = append(conditions, "width >= ?")
-			params = append(params, chairWidth.Min)
-		}
-		if chairWidth.Max != -1 {
-			conditions = append(conditions, "width < ?")
-			params = append(params, chairWidth.Max)
-		}
+		conditions = append(conditions, "width_range = ?")
+		params = append(params, c.QueryParam("widthRangeId"))
 	}
 
 	if c.QueryParam("depthRangeId") != "" {
-		chairDepth, err := getRange(chairSearchCondition.Depth, c.QueryParam("depthRangeId"))
-		if err != nil {
-			c.Echo().Logger.Infof("depthRangeId invalid, %v : %v", c.QueryParam("depthRangeId"), err)
-			return c.NoContent(http.StatusBadRequest)
-		}
-
-		if chairDepth.Min != -1 {
-			conditions = append(conditions, "depth >= ?")
-			params = append(params, chairDepth.Min)
-		}
-		if chairDepth.Max != -1 {
-			conditions = append(conditions, "depth < ?")
-			params = append(params, chairDepth.Max)
-		}
+		conditions = append(conditions, "depth_range = ?")
+		params = append(params, c.QueryParam("depthRangeId"))
 	}
 
 	if c.QueryParam("kind") != "" {
@@ -592,41 +545,24 @@ func buyChair(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	tx, err := db.BeginTxx(ctx, nil)
-	if err != nil {
-		c.Echo().Logger.Errorf("failed to create transaction : %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-	defer tx.Rollback()
 
-	var chair Chair
-	err = tx.QueryRowxContext(ctx, "SELECT * FROM chair WHERE id = ? AND stock > 0 FOR UPDATE", id).StructScan(&chair)
-	if err != nil {
+	var stock int64
+	row := db.QueryRowContext(ctx, "UPDATE chair SET stock = stock - 1 WHERE id = ? AND stock > 0 RETURNING stock", id)
+	if err := row.Scan(&stock); err != nil {
 		if err == sql.ErrNoRows {
 			c.Echo().Logger.Infof("buyChair chair id \"%v\" not found", id)
 			return c.NoContent(http.StatusNotFound)
 		}
-		c.Echo().Logger.Errorf("DB Execution Error: on getting a chair by id : %v", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
-
-	_, err = tx.ExecContext(ctx, "UPDATE chair SET stock = stock - 1 WHERE id = ?", id)
-	if err != nil {
 		c.Echo().Logger.Errorf("chair stock update failed : %v", err)
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	// 残り1つを購入したことになるので在庫切れリストに追加する
-	if (chair.Stock - 1) == 0 {
+	if stock == 0 {
 		if err := rdb.SAdd(c.Request().Context(), soldOutChairKey, id).Err(); err != nil {
 			c.Echo().Logger.Errorf("failed to insert sold_out_chair to redis, id: %v", id)
 			return c.NoContent(http.StatusInsufficientStorage)
 		}
-	}
-	err = tx.Commit()
-	if err != nil {
-		c.Echo().Logger.Errorf("transaction commit error : %v", err)
-		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	return c.NoContent(http.StatusOK)
@@ -707,7 +643,7 @@ func postEstate(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	tx, err := db.BeginTx(ctx, nil)
+	tx, err := db.BeginTxx(ctx, nil)
 	if err != nil {
 		c.Logger().Errorf("failed to begin tx: %v", err)
 		return c.NoContent(http.StatusInternalServerError)
