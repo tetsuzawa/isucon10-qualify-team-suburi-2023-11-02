@@ -84,6 +84,25 @@ ADD COLUMN depth_range int GENERATED ALWAYS AS (CASE WHEN depth < 80 THEN 0 WHEN
 create index chair_depth_range_popularity_id_index
     on isuumo.chair (depth_range asc, popularity desc, id asc);
 
--- 
+-- estate
 ALTER TABLE isuumo.estate ADD COLUMN features_array text[] GENERATED ALWAYS AS (regexp_split_to_array(features, ',')) STORED;
 CREATE INDEX idx_estate_features_array ON estate USING gin(features_array);
+
+ALTER TABLE isuumo.estate
+ADD COLUMN rent_range int GENERATED ALWAYS AS (CASE WHEN rent < 50000 THEN 0 WHEN 50000 <= rent and rent < 100000 THEN 1 WHEN 100000 <= rent and rent < 150000 THEN 2 WHEN 150000 <= rent THEN 3 END) STORED;
+
+create index estate_rent_range_popularity_id_index
+    on isuumo.estate (rent_range asc, popularity desc, id asc);
+
+-- 80cm未満: 0, 80cm以上110cm未満: 1, 110cm以上150cm未満: 2, 150cm以上: 3
+ALTER TABLE isuumo.estate
+ADD COLUMN door_height_range int GENERATED ALWAYS AS (CASE WHEN door_height < 80 THEN 0 WHEN 80 <= door_height and door_height < 110 THEN 1 WHEN 110 <= door_height and door_height < 150 THEN 2 WHEN 150 <= door_height THEN 3 END) STORED;
+
+create index estate_door_height_range_popularity_id_index
+    on isuumo.estate (door_height_range asc, popularity desc, id asc);
+
+ALTER TABLE isuumo.estate
+ADD COLUMN door_width_range int GENERATED ALWAYS AS (CASE WHEN door_width < 80 THEN 0 WHEN 80 <= door_width and door_width < 110 THEN 1 WHEN 110 <= door_width and door_width < 150 THEN 2 WHEN 150 <= door_width THEN 3 END) STORED;
+
+create index estate_door_width_range_popularity_id_index
+    on isuumo.estate (door_width_range asc, popularity desc, id asc);
