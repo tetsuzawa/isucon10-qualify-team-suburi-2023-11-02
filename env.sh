@@ -4,3 +4,4 @@ MYSQL_USER=isucon
 MYSQL_DBNAME=isuumo
 MYSQL_PASS=isucon
 OTEL_EXPORTER_OTLP_ENDPOINT="http://monitoring:4318"
+OTEL_SERVICE_NAME="isuumo"
