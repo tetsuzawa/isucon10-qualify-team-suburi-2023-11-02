@@ -6,13 +6,14 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
-	"github.com/redis/go-redis/v9"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/redis/go-redis/v9"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
@@ -69,18 +70,19 @@ type ChairListResponse struct {
 
 // Estate 物件
 type Estate struct {
-	ID          int64   `db:"id" json:"id"`
-	Thumbnail   string  `db:"thumbnail" json:"thumbnail"`
-	Name        string  `db:"name" json:"name"`
-	Description string  `db:"description" json:"description"`
-	Latitude    float64 `db:"latitude" json:"latitude"`
-	Longitude   float64 `db:"longitude" json:"longitude"`
-	Address     string  `db:"address" json:"address"`
-	Rent        int64   `db:"rent" json:"rent"`
-	DoorHeight  int64   `db:"door_height" json:"doorHeight"`
-	DoorWidth   int64   `db:"door_width" json:"doorWidth"`
-	Features    string  `db:"features" json:"features"`
-	Popularity  int64   `db:"popularity" json:"-"`
+	ID            int64   `db:"id" json:"id"`
+	Thumbnail     string  `db:"thumbnail" json:"thumbnail"`
+	Name          string  `db:"name" json:"name"`
+	Description   string  `db:"description" json:"description"`
+	Latitude      float64 `db:"latitude" json:"latitude"`
+	Longitude     float64 `db:"longitude" json:"longitude"`
+	Address       string  `db:"address" json:"address"`
+	Rent          int64   `db:"rent" json:"rent"`
+	DoorHeight    int64   `db:"door_height" json:"doorHeight"`
+	DoorWidth     int64   `db:"door_width" json:"doorWidth"`
+	Features      string  `db:"features" json:"features"`
+	Popularity    int64   `db:"popularity" json:"-"`
+	FeaturesArray string  `db:"features_array" json:"-"`
 }
 
 // EstateSearchResponse estate/searchへのレスポンスの形式
@@ -798,10 +800,16 @@ func searchEstates(c echo.Context) error {
 	}
 
 	if c.QueryParam("features") != "" {
-		for _, f := range strings.Split(c.QueryParam("features"), ",") {
-			c := "%" + f + "%"
-			conditions = append(conditions, "features like ?")
-			params = append(params, c)
+		ss := strings.Split(c.QueryParam("features"), ",")
+		if len(ss) > 0 {
+			for _, s := range ss {
+				params = append(params, s)
+			}
+			conditions = append(
+				conditions,
+				fmt.Sprintf("features_array @> ARRAY[?%s]",
+					strings.Repeat(",?", len(ss)-1)),
+			)
 		}
 	}
 
