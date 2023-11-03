@@ -36,3 +36,17 @@ CREATE TABLE isuumo.chair
     popularity  INTEGER         NOT NULL,
     stock       INTEGER         NOT NULL
 );
+
+
+create index estate_popularity_id_index
+    on isuumo.estate (popularity desc, id asc);
+
+create index chair_stock_price_id_index
+    on isuumo.chair (stock, price, id);
+
+create index estate_rent_id_index
+    on isuumo.estate (rent, id);
+
+ALTER TABLE isuumo.chair ADD COLUMN features_array text[] GENERATED ALWAYS AS (regexp_split_to_array(features, ',')) STORED;
+
+CREATE INDEX idx_features_array ON chair USING gin(features_array);
