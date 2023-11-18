@@ -1,3 +1,12 @@
+# 複数serverへ proxy
+upstream app {
+    server 192.168.0.11:1323 weight=5; # weight をつけるとproxyする量を変更可能。defaultは1。多いほどたくさんrequestを振り分ける。
+    server 192.168.0.12:80 weight=1;
+    #server 192.100.0.3:5000;
+    keepalive 60; #app server へ keepalive する connection の数。Goはデフォルトでkeepaliveに対応している。 HTTP 1.1とConnection ""対応をしないと有効化されない。
+    # hash $request_uri consistent;  # urlが同じ場合origin serverへのrequestを同じserverへ送る。これを使うとGoのprocess cacheが効きやすくなる。cpu使用率が増える可能性があるので注意。Goでのcache hit率が低く、CPU使用率が高い場合に有効。
+}
+
 lua_package_path "/path/to/lua-resty-cookie/lib/?.lua;;";
 
 map $http_user_agent $blocked_user_agent {
@@ -24,8 +33,36 @@ server {
         return 403;
     }
 
+    # ================================= 書き込み =================================
+    # TODO POSTだけ2台目に寄せたほうがよいかも
+    location = /api/estate {
+            proxy_pass http://192.168.0.12:1323;
+            proxy_http_version 1.1;          # app server との connection を keepalive するなら追加
+            proxy_set_header Connection "";  # app server との connection を keepalive するなら追加
+    }
+
+    location = /api/chair {
+            proxy_pass http://192.168.0.12:1323;
+            proxy_http_version 1.1;          # app server との connection を keepalive するなら追加
+            proxy_set_header Connection "";  # app server との connection を keepalive するなら追加
+    }
+
+    location ~ /api/chair/buy/\d+ {
+            proxy_pass http://192.168.0.12:1323;
+            proxy_http_version 1.1;          # app server との connection を keepalive するなら追加
+            proxy_set_header Connection "";  # app server との connection を keepalive するなら追加
+    }
+    location /initialize {
+            proxy_pass http://192.168.0.12:1323;
+            proxy_http_version 1.1;          # app server との connection を keepalive するなら追加
+            proxy_set_header Connection "";  # app server との connection を keepalive するなら追加
+    }
+
+    # ================================= 書き込み =================================
+
+
     location ~ /api/estate/\d+ {
-            proxy_pass http://localhost:1323;
+            proxy_pass http://app;
             proxy_http_version 1.1;          # app server との connection を keepalive するなら追加
             proxy_set_header Connection "";  # app server との connection を keepalive するなら追加
 
@@ -41,7 +78,7 @@ server {
     location ~ /api/chair/\d+ {
             access_by_lua_file /home/isucon/etc/openresty/lua/chair_redis_cache.lua;
 
-            proxy_pass http://localhost:1323;
+            proxy_pass http://app;
             proxy_http_version 1.1;          # app server との connection を keepalive するなら追加
             proxy_set_header Connection "";  # app server との connection を keepalive するなら追加
 
@@ -55,13 +92,7 @@ server {
     }
 
     location /api {
-            proxy_pass http://localhost:1323;
-            proxy_http_version 1.1;          # app server との connection を keepalive するなら追加
-            proxy_set_header Connection "";  # app server との connection を keepalive するなら追加
-    }
-
-    location /initialize {
-            proxy_pass http://localhost:1323;
+            proxy_pass http://app;
             proxy_http_version 1.1;          # app server との connection を keepalive するなら追加
             proxy_set_header Connection "";  # app server との connection を keepalive するなら追加
     }
